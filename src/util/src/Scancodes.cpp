@@ -407,6 +407,14 @@ std::string scancodeName(unsigned char scancode)
             return "Fn2";
         case 0xD2:
             return "Fn3";
+        case 0xD8:
+            return "Select Base";
+        case 0xD9:
+            return "Select 1";
+        case 0xDA:
+            return "Select 2";
+        case 0xDB:
+            return "Select 3";
         case 0xE0:
             return "LeftControl";
         case 0xE1:

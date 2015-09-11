@@ -21,6 +21,18 @@ enum ExpMode {
 	expModeDisabled,
 	expModeSolenoid,
 	expModeLockLEDs,
+	expModeSolenoidPlusNOCapsLockSwitch,
+	expModeSolenoidPlusNCCapsLockSwitch,
+	expModeSolenoidPlusNONumLockSwitch,
+	expModeSolenoidPlusNCNumLockSwitch,
+	expModeSolenoidPlusNOShiftLockSwitch,
+	expModeSolenoidPlusNCShiftLockSwitch,
+	expModeSolenoidPlusNOFn1LockSwitch,
+	expModeSolenoidPlusNCFn1LockSwitch,
+	expModeSolenoidPlusNOFn2LockSwitch,
+	expModeSolenoidPlusNCFn2LockSwitch,
+	expModeSolenoidPlusNOFn3LockSwitch,
+	expModeSolenoidPlusNCFn3LockSwitch,
 	expModeEND
 };
 

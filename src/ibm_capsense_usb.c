@@ -167,7 +167,6 @@ initHardware(void)
 	/* Hardware Initialization */
 	vrefInit();
 	srInit();
-	expInit();
 	srClear();
 	srEnable();
 	USB_Init();

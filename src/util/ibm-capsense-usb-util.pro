@@ -1,4 +1,4 @@
-VERSION = 0.6.7
+VERSION = 0.7.0
 VERSTR = '\\"$${VERSION}\\"'
 DEFINES += VER=\"$${VERSTR}\"
 
@@ -27,21 +27,21 @@ unix:!macx {
     INCLUDEPATH += \
         /usr/include \
         /usr/include/hidapi
+    CONFIG += debug
 }
 win32 { 
     LIBS += -Lc:/lib -lhidapi-0
     INCLUDEPATH += c:/include \
                    c:/include/hidapi
+    CONFIG += release
 }
 macx {
     INCLUDEPATH += ../../../hidapi-0.7.0/hidapi
     LIBS += -framework IOKit -framework CoreFoundation
-    CONFIG += c++11
+    CONFIG += c++11 debug
     QMAKE_CXXFLAGS += -mmacosx-version-min=10.7
     QMAKE_CXXFLAGS += -stdlib=libc++
 }
-
-CONFIG += debug
 
 HEADERS += \
         src/DiagInterface.h \

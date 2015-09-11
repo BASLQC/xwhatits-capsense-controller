@@ -16,23 +16,21 @@
  ******************************************************************************/
 #include "exp.h"
 
-static uint8_t	msCtr;
-static uint8_t	solenoidQueue;
-uint8_t		expMode;
-uint8_t		expVal1;	// meaning of val 1 & 2 is depending on mode
-uint8_t		expVal2;
+static uint8_t msCtr;
+static uint8_t solenoidQueue;
 
-/*
- *
+/* 0-bit = reported lock state (through LED report)
+ * 1-bit = last switch state
+ * 2-bit = have run logic at least once since reset
  */
-void
-expInit(void)
-{
-	DDRB |= (1 << PB4);
-	DDRB |= (1 << PB5);
-	DDRB |= (1 << PB6);
-	DDRB |= (1 << PB7);
-}
+static uint8_t lockState;
+
+uint8_t	       expMode;
+uint8_t	       expVal1;	// meaning of val 1 & 2 is depending on mode
+uint8_t	       expVal2;
+
+static uint8_t switchLockLogic(uint8_t switchState);
+static void    handleFnLockSelect(uint8_t switchState);
 
 /*
  *
@@ -40,6 +38,10 @@ expInit(void)
 void
 expClear(void)
 {
+	DDRB  &= ~(1 << PB4);
+	DDRB  &= ~(1 << PB5);
+	DDRB  &= ~(1 << PB6);
+	DDRB  &= ~(1 << PB7);
 	PORTB &= ~(1 << PB4);
 	PORTB &= ~(1 << PB5);
 	PORTB &= ~(1 << PB6);
@@ -47,6 +49,17 @@ expClear(void)
 
 	msCtr = 0;
 	solenoidQueue = 0;
+	lockState &= ~(1 << 2); // reset `logic run flag' (see above)
+
+	/* LEDs on the PC-AT seem to have pull-ups; so re-enable outputs so
+	 * that the LEDs don't stay on and waste power when this function is
+	 * called before USB suspend.
+	 */
+	if (expMode == expModeLockLEDs) {
+		DDRB  |= (1 << PB4);
+		DDRB  |= (1 << PB5);
+		DDRB  |= (1 << PB6);
+	}
 }
 
 /*
@@ -58,8 +71,26 @@ expReset(void)
 	expClear();
 
 	switch (expMode) {
+	case expModeSolenoidPlusNOCapsLockSwitch:
+	case expModeSolenoidPlusNCCapsLockSwitch:
+	case expModeSolenoidPlusNONumLockSwitch:
+	case expModeSolenoidPlusNCNumLockSwitch:
+	case expModeSolenoidPlusNOShiftLockSwitch:
+	case expModeSolenoidPlusNCShiftLockSwitch:
+	case expModeSolenoidPlusNOFn1LockSwitch:
+	case expModeSolenoidPlusNCFn1LockSwitch:
+	case expModeSolenoidPlusNOFn2LockSwitch:
+	case expModeSolenoidPlusNCFn2LockSwitch:
+	case expModeSolenoidPlusNOFn3LockSwitch:
+	case expModeSolenoidPlusNCFn3LockSwitch:
+		PORTB |= (1 << PB5); // turn on pullup for input pin
 	case expModeSolenoid:
-		PORTB |= (1 << PB7);	// enable 9V SMPS
+		DDRB  |= (1 << PB6);
+		DDRB  |= (1 << PB7);
+		PORTB |= (1 << PB7); // enable 9V SMPS
+		break;
+	case expModeLockLEDs:
+		/* pins will already be set to outputs in expClear() */
 		break;
 	default:
 		break;
@@ -77,6 +108,18 @@ expMSTick(void)
 
 	switch (expMode) {
 	case expModeSolenoid:
+	case expModeSolenoidPlusNOCapsLockSwitch:
+	case expModeSolenoidPlusNCCapsLockSwitch:
+	case expModeSolenoidPlusNONumLockSwitch:
+	case expModeSolenoidPlusNCNumLockSwitch:
+	case expModeSolenoidPlusNOShiftLockSwitch:
+	case expModeSolenoidPlusNCShiftLockSwitch:
+	case expModeSolenoidPlusNOFn1LockSwitch:
+	case expModeSolenoidPlusNCFn1LockSwitch:
+	case expModeSolenoidPlusNOFn2LockSwitch:
+	case expModeSolenoidPlusNCFn2LockSwitch:
+	case expModeSolenoidPlusNOFn3LockSwitch:
+	case expModeSolenoidPlusNCFn3LockSwitch:
 		if (msCtr == expVal1)
 			PORTB &= ~(1 << PB6); // turn off solenoid
 		else if (solenoidQueue > 0 && msCtr >= expVal2) {
@@ -102,26 +145,193 @@ expKeyPositiveEdge(void)
 /*
  *
  */
+uint8_t
+switchLockLogic(uint8_t switchState)
+{
+	/* run on switch edges, or if we haven't run since reset */
+	if ((!switchState &&  (lockState & (1 << 1))) ||
+	    ( switchState && !(lockState & (1 << 1))) ||
+	    (!(lockState & (1 << 2)))) {
+		lockState |= (1 << 2);
+		if (switchState)
+			lockState |=  (1 << 1);
+		else
+			lockState &= ~(1 << 1);
+
+		if (switchState && !(lockState & (1 << 0)))
+			return 1;
+		else if (!switchState && (lockState & (1 << 0)))
+			return 1;
+	}
+
+	return 0;
+}
+
+void
+handleFnLockSelect(uint8_t switchState)
+{
+	if (switchState) {
+		switch (expMode) {
+		case expModeSolenoidPlusNOFn1LockSwitch:
+		case expModeSolenoidPlusNCFn1LockSwitch:
+			layersDefaultLayer = 1;
+			break;
+		case expModeSolenoidPlusNOFn2LockSwitch:
+		case expModeSolenoidPlusNCFn2LockSwitch:
+			layersDefaultLayer = 2;
+			break;
+		case expModeSolenoidPlusNOFn3LockSwitch:
+		case expModeSolenoidPlusNCFn3LockSwitch:
+			layersDefaultLayer = 3;
+			break;
+		}
+	} else
+		layersDefaultLayer = 0;
+}
+
+/*
+ *
+ */
+void
+expPostProcessStdKbdReport(USB_KeyboardReport_Data_t *report,
+			   uint8_t usedKeyCodes)
+{
+	switch (expMode) {
+	case expModeSolenoidPlusNOCapsLockSwitch:
+		if (switchLockLogic(!(PINB & (1 << PB5))))
+			report->KeyCode[usedKeyCodes] =
+			   HID_KEYBOARD_SC_CAPS_LOCK;
+		break;
+	case expModeSolenoidPlusNCCapsLockSwitch:
+		if (switchLockLogic(PINB & (1 << PB5)))
+			report->KeyCode[usedKeyCodes] =
+			   HID_KEYBOARD_SC_CAPS_LOCK;
+		break;
+	case expModeSolenoidPlusNONumLockSwitch:
+		if (switchLockLogic(!(PINB & (1 << PB5))))
+			report->KeyCode[usedKeyCodes] =
+			   HID_KEYBOARD_SC_NUM_LOCK;
+		break;
+	case expModeSolenoidPlusNCNumLockSwitch:
+		if (switchLockLogic(PINB & (1 << PB5)))
+			report->KeyCode[usedKeyCodes] =
+			   HID_KEYBOARD_SC_NUM_LOCK;
+		break;
+	case expModeSolenoidPlusNOShiftLockSwitch:
+		if (!(PINB & (1 << PB5)))
+			report->Modifier += HID_KEYBOARD_MODIFIER_LEFTSHIFT;
+		break;
+	case expModeSolenoidPlusNCShiftLockSwitch:
+		if (PINB & (1 << PB5))
+			report->Modifier += HID_KEYBOARD_MODIFIER_LEFTSHIFT;
+		break;
+	case expModeSolenoidPlusNOFn1LockSwitch:
+	case expModeSolenoidPlusNOFn2LockSwitch:
+	case expModeSolenoidPlusNOFn3LockSwitch:
+		handleFnLockSelect(!(PINB & (1 << PB5)));
+		break;
+	case expModeSolenoidPlusNCFn1LockSwitch:
+	case expModeSolenoidPlusNCFn2LockSwitch:
+	case expModeSolenoidPlusNCFn3LockSwitch:
+		handleFnLockSelect(PINB & (1 << PB5));
+		break;
+	default:
+		break;
+	}
+}
+
+/*
+ *
+ */
+void
+expPostProcessNKROKbdReport(NKROReport *report)
+{
+	switch (expMode) {
+	case expModeSolenoidPlusNOCapsLockSwitch:
+		if (switchLockLogic(!(PINB & (1 << PB5))))
+			report->codeBmp[HID_KEYBOARD_SC_CAPS_LOCK / 8] |=
+			   (1 << (HID_KEYBOARD_SC_CAPS_LOCK % 8));
+		break;
+	case expModeSolenoidPlusNCCapsLockSwitch:
+		if (switchLockLogic(PINB & (1 << PB5)))
+			report->codeBmp[HID_KEYBOARD_SC_CAPS_LOCK / 8] |=
+			   (1 << (HID_KEYBOARD_SC_CAPS_LOCK % 8));
+		break;
+	case expModeSolenoidPlusNONumLockSwitch:
+		if (switchLockLogic(!(PINB & (1 << PB5))))
+			report->codeBmp[HID_KEYBOARD_SC_NUM_LOCK / 8] |=
+			   (1 << (HID_KEYBOARD_SC_NUM_LOCK % 8));
+		break;
+	case expModeSolenoidPlusNCNumLockSwitch:
+		if (switchLockLogic(PINB & (1 << PB5)))
+			report->codeBmp[HID_KEYBOARD_SC_NUM_LOCK / 8] |=
+			   (1 << (HID_KEYBOARD_SC_NUM_LOCK % 8));
+		break;
+	case expModeSolenoidPlusNOShiftLockSwitch:
+		if (!(PINB & (1 << PB5)))
+			report->modifiers |=
+			   (1 << (HID_KEYBOARD_SC_LEFT_SHIFT - 0xe0));
+		break;
+	case expModeSolenoidPlusNCShiftLockSwitch:
+		if (PINB & (1 << PB5))
+			report->modifiers |=
+			   (1 << (HID_KEYBOARD_SC_LEFT_SHIFT - 0xe0));
+		break;
+	case expModeSolenoidPlusNOFn1LockSwitch:
+	case expModeSolenoidPlusNOFn2LockSwitch:
+	case expModeSolenoidPlusNOFn3LockSwitch:
+		handleFnLockSelect(!(PINB & (1 << PB5)));
+		break;
+	case expModeSolenoidPlusNCFn1LockSwitch:
+	case expModeSolenoidPlusNCFn2LockSwitch:
+	case expModeSolenoidPlusNCFn3LockSwitch:
+		handleFnLockSelect(PINB & (1 << PB5));
+		break;
+	default:
+		break;
+	}
+}
+
+/*
+ *
+ */
 void
 expSetLockLEDs(uint8_t leds)
 {
-	if (expMode != expModeLockLEDs)
-		return;
+	switch (expMode) {
+	case expModeLockLEDs:
+		if (leds & HID_KEYBOARD_LED_NUMLOCK)
+			PORTB |=  (1 << PB5);
+		else
+			PORTB &= ~(1 << PB5);
 
-	if (leds & HID_KEYBOARD_LED_NUMLOCK)
-		PORTB |=  (1 << PB5);
-	else
-		PORTB &= ~(1 << PB5);
+		if (leds & HID_KEYBOARD_LED_CAPSLOCK)
+			PORTB |=  (1 << PB6);
+		else
+			PORTB &= ~(1 << PB6);
 
-	if (leds & HID_KEYBOARD_LED_CAPSLOCK)
-		PORTB |=  (1 << PB6);
-	else
-		PORTB &= ~(1 << PB6);
-
-	if (leds & HID_KEYBOARD_LED_SCROLLLOCK)
-		PORTB |=  (1 << PB4);
-	else
-		PORTB &= ~(1 << PB4);
+		if (leds & HID_KEYBOARD_LED_SCROLLLOCK)
+			PORTB |=  (1 << PB4);
+		else
+			PORTB &= ~(1 << PB4);
+		break;
+	case expModeSolenoidPlusNOCapsLockSwitch:
+	case expModeSolenoidPlusNCCapsLockSwitch:
+		if (leds & HID_KEYBOARD_LED_CAPSLOCK)
+			lockState |=  (1 << 0);
+		else
+			lockState &= ~(1 << 0);
+		break;
+	case expModeSolenoidPlusNONumLockSwitch:
+	case expModeSolenoidPlusNCNumLockSwitch:
+		if (leds & HID_KEYBOARD_LED_NUMLOCK)
+			lockState |=  (1 << 0);
+		else
+			lockState &= ~(1 << 0);
+		break;
+	default:
+		break;
+	}
 }
 
 /*

@@ -108,29 +108,13 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
 
     QLabel *expModeComboLabel = new QLabel("Mode:");
     expModeCombo = new NonFocusedComboBox;
-    for (int i = 0; i < expModeEND; i++)
-    {
-        switch (i)
-        {
-            case expModeDisabled:
-                expModeCombo->addItem("Disabled", i);
-                break;
-            case expModeSolenoid:
-                expModeCombo->addItem("Solenoid/Buzzer", i);
-                break;
-            case expModeLockLEDs:
-                expModeCombo->addItem("Lock LEDs", i);
-                break;
-            default:
-                break;
-        }
-    }
+    populateExpModeCombo();
 
-    QLabel *expVal1Label = new QLabel("Extend time (ms):");
+    expVal1Label = new QLabel("Extend time (ms):");
     expVal1SpinBox = new NonFocusedSpinBox;
     expVal1SpinBox->setMaximum(255);
 
-    QLabel *expVal2Label = new QLabel("Retract time (ms):");
+    expVal2Label = new QLabel("Retract time (ms):");
     expVal2SpinBox = new NonFocusedSpinBox;
     expVal2SpinBox->setMaximum(255);
 
@@ -289,6 +273,70 @@ Frontend::~Frontend(void)
 /*
  *
  */
+void Frontend::populateExpModeCombo(void)
+{
+    for (int i = 0; i < expModeEND; i++)
+    {
+        switch (i)
+        {
+            case expModeDisabled:
+                expModeCombo->addItem("Disabled");
+                break;
+            case expModeSolenoid:
+                expModeCombo->addItem("Solenoid/Buzzer");
+                break;
+            case expModeLockLEDs:
+                expModeCombo->addItem("Lock LEDs");
+                break;
+            case expModeSolenoidPlusNOCapsLockSwitch:
+                expModeCombo->addItem("Solenoid/Buzzer + Caps Lock Switch "
+                        "(NO)");
+                break;
+            case expModeSolenoidPlusNCCapsLockSwitch:
+                expModeCombo->addItem("Solenoid/Buzzer + Caps Lock Switch "
+                        "(NC)", i);
+                break;
+            case expModeSolenoidPlusNONumLockSwitch:
+                expModeCombo->addItem("Solenoid/Buzzer + Num Lock switch (NO)");
+                break;
+            case expModeSolenoidPlusNCNumLockSwitch:
+                expModeCombo->addItem("Solenoid/Buzzer + Num Lock switch (NC)");
+                break;
+            case expModeSolenoidPlusNOShiftLockSwitch:
+                expModeCombo->addItem("Solenoid/Buzzer + Shift Lock Switch "
+                        "(NO)");
+                break;
+            case expModeSolenoidPlusNCShiftLockSwitch:
+                expModeCombo->addItem("Solenoid/Buzzer + Shift Lock Switch "
+                        "(NC)");
+                break;
+            case expModeSolenoidPlusNOFn1LockSwitch:
+                expModeCombo->addItem("Solenoid/Buzzer + Fn1 Lock Switch (NO)");
+                break;
+            case expModeSolenoidPlusNCFn1LockSwitch:
+                expModeCombo->addItem("Solenoid/Buzzer + Fn1 Lock Switch (NC)");
+                break;
+            case expModeSolenoidPlusNOFn2LockSwitch:
+                expModeCombo->addItem("Solenoid/Buzzer + Fn2 Lock Switch (NO)");
+                break;
+            case expModeSolenoidPlusNCFn2LockSwitch:
+                expModeCombo->addItem("Solenoid/Buzzer + Fn2 Lock Switch (NC)");
+                break;
+            case expModeSolenoidPlusNOFn3LockSwitch:
+                expModeCombo->addItem("Solenoid/Buzzer + Fn3 Lock Switch (NO)");
+                break;
+            case expModeSolenoidPlusNCFn3LockSwitch:
+                expModeCombo->addItem("Solenoid/Buzzer + Fn3 Lock Switch (NC)");
+                break;
+        }
+
+        expModeCombo->setItemData(i, i);
+    }
+}
+
+/*
+ *
+ */
 void Frontend::updateVref(void)
 {
     disconnect(vrefSpinBox, SIGNAL(valueChanged(int)), this,
@@ -333,15 +381,23 @@ void Frontend::setVrefFromBox(void)
 /*
  *
  */
-void Frontend::setExpValsEnabled(ExpMode mode)
+void Frontend::adjustExpVals(ExpMode mode)
 {
     switch (mode)
     {
+        case expModeSolenoidPlusNOCapsLockSwitch:
+        case expModeSolenoidPlusNCCapsLockSwitch:
+        case expModeSolenoidPlusNOShiftLockSwitch:
+        case expModeSolenoidPlusNCShiftLockSwitch:
         case expModeSolenoid:
+            expVal1Label->setText("Extend time (ms):");
+            expVal2Label->setText("Retract time (ms):");
             expVal1SpinBox->setEnabled(true);
             expVal2SpinBox->setEnabled(true);
             break;
         default:
+            expVal1Label->setText("");
+            expVal2Label->setText("");
             expVal1SpinBox->setEnabled(false);
             expVal2SpinBox->setEnabled(false);
             break;
@@ -368,7 +424,7 @@ void Frontend::updateExpMode(void)
     expVal1SpinBox->setValue(val1);
     expVal2SpinBox->setValue(val2);
 
-    setExpValsEnabled((ExpMode)mode);
+    adjustExpVals((ExpMode)mode);
 
     connect(expModeCombo, SIGNAL(currentIndexChanged(int)),
             SLOT(setExpMode(int)));
@@ -385,7 +441,7 @@ void Frontend::setExpMode(int)
     int val1 = expVal1SpinBox->value();
     int val2 = expVal2SpinBox->value();
 
-    setExpValsEnabled((ExpMode)mode);
+    adjustExpVals((ExpMode)mode);
 
     qDebug() << "setting exp mode";
 

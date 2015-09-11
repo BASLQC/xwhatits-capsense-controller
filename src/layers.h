@@ -26,6 +26,7 @@ extern uint8_t layerMatrix1[KBD_COLS][KBD_ROWS];
 extern uint8_t layerMatrix2[KBD_COLS][KBD_ROWS];
 extern uint8_t layerMatrix3[KBD_COLS][KBD_ROWS];
 extern uint8_t layerConditions[LAYERS_NUM_CONDITIONS];
+extern uint8_t layersDefaultLayer;
 
 void    layersLoad(void);
 void    layersStore(void);

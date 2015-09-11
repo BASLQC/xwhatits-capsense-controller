@@ -29,6 +29,10 @@
 #define KBD_SC_FN1      0xD0
 #define KBD_SC_FN2      0xD1
 #define KBD_SC_FN3      0xD2
+#define KBD_SC_SELECT_0 0xD8
+#define KBD_SC_SELECT_1 0xD9
+#define KBD_SC_SELECT_2 0xDA
+#define KBD_SC_SELECT_3 0xDB
 
 
 #if defined(BEAMSPRING)

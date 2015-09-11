@@ -17,7 +17,7 @@ BOARD_TYPE    = MODEL_F
 BOARD_REV     = 1
 USB_CURRENT   = 100
 
-VERSION      = 0.6.7
+VERSION      = 0.7.0
 
 MCU          = atmega32u2
 ARCH         = AVR8

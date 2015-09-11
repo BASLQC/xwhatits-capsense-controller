@@ -64,7 +64,9 @@ class Frontend: public QWidget
         QLabel *kbdMatrixSizeLabel;
         QLabel *kbdLayerCountLabel;
         NonFocusedComboBox *expModeCombo;
+        QLabel *expVal1Label;
         NonFocusedSpinBox *expVal1SpinBox;
+        QLabel *expVal2Label;
         NonFocusedSpinBox *expVal2SpinBox;
         KeyMon *keyMon;
         QGridLayout *layerConditionsGrid;
@@ -88,7 +90,8 @@ class Frontend: public QWidget
         void storeVrefButtonClicked(void);
         void vrefHelpButtonClicked(void);
 
-        void setExpValsEnabled(ExpMode mode);
+        void populateExpModeCombo(void);
+        void adjustExpVals(ExpMode mode);
         void updateExpMode(void);
         void setExpMode(int);
         void storeExpModeButtonClicked(void);

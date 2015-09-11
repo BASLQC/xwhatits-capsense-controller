@@ -21,6 +21,9 @@ uint8_t layerMatrix1[KBD_COLS][KBD_ROWS];
 uint8_t layerMatrix2[KBD_COLS][KBD_ROWS];
 uint8_t layerMatrix3[KBD_COLS][KBD_ROWS];
 uint8_t layerConditions[LAYERS_NUM_CONDITIONS];
+uint8_t layersDefaultLayer;
+
+static uint8_t layersSelectedLayer;
 
 static void layersLoadConditions(void);
 static void layersStoreConditions(void);
@@ -34,6 +37,8 @@ static void layersStoreMatrix(uint8_t *addr, uint8_t mtx[KBD_COLS][KBD_ROWS]);
 void
 layersLoad(void)
 {
+	layersSelectedLayer = 0;
+
 	layersLoadConditions();
 	layersLoadMatrix((const uint8_t *)EEP_LAYER_MATRIX_0, layerMatrix0);
 	layersLoadMatrix((const uint8_t *)EEP_LAYER_MATRIX_1, layerMatrix1);
@@ -111,12 +116,14 @@ uint8_t
 layersWhichLayer(void)
 {
 	uint8_t fnKeys = 0;
+	uint8_t result = layersDefaultLayer;
+	uint8_t (*mtx)[KBD_COLS][KBD_ROWS] = layersMatrix(layersSelectedLayer);
 
 	for (uint8_t col = 0; col < KBD_COLS; col++) {
 		for (uint8_t row = 0; row < KBD_ROWS; row++) {
 			if (kbdBitmap[KBD_BMP_BYTE(col)] &
 			    KBD_BMP_MASK(col, row)) {
-				switch (layerMatrix0[col][row]) {
+				switch ((*mtx)[col][row]) {
 				case KBD_SC_FN1:
 					fnKeys |= (1 << 0);
 					break;
@@ -131,13 +138,14 @@ layersWhichLayer(void)
 		}
 	}
 
-	if (fnKeys == 0)
-		return 0;
+	if (fnKeys != 0) {
+		/* condition is in high nibble, resulting layer is in low */
+		for (uint8_t i = 0; i < LAYERS_NUM_CONDITIONS; i++)
+			if (layerConditions[i] >> 4 == fnKeys)
+				result = layerConditions[i] & 0xf;
+	}
 
-	/* condition is in high nibble, resulting layer is in low */
-	for (uint8_t i = 0; i < LAYERS_NUM_CONDITIONS; i++)
-		if (layerConditions[i] >> 4 == fnKeys)
-			return layerConditions[i] & 0xf;
+	layersSelectedLayer = result;
 
-	return 0;
+	return result;
 }

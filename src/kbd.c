@@ -30,6 +30,7 @@ kbdInit(void)
 {
 	memset(kbd, 0, sizeof(kbd[0][0]) * KBD_COLS * KBD_ROWS);
 	memset(kbdBitmap, 0, sizeof(kbdBitmap));
+	layersDefaultLayer = 0;
 }
 
 /*
@@ -157,6 +158,18 @@ kbdFillReport(USB_KeyboardReport_Data_t *kbdReport)
 
 				kbdReport->KeyCode[usedKeyCodes++] = sc;
 				switch (sc) {
+				case KBD_SC_SELECT_0:
+					layersDefaultLayer = 0;
+					break;
+				case KBD_SC_SELECT_1:
+					layersDefaultLayer = 1;
+					break;
+				case KBD_SC_SELECT_2:
+					layersDefaultLayer = 2;
+					break;
+				case KBD_SC_SELECT_3:
+					layersDefaultLayer = 3;
+					break;
 				case HID_KEYBOARD_SC_LEFT_SHIFT:
 					kbdReport->Modifier +=
 					   HID_KEYBOARD_MODIFIER_LEFTSHIFT;
@@ -193,6 +206,8 @@ kbdFillReport(USB_KeyboardReport_Data_t *kbdReport)
 			}
 		}
 	}
+
+	expPostProcessStdKbdReport(kbdReport, usedKeyCodes);
 }
 
 /*
@@ -210,6 +225,18 @@ kbdFillNKROReport(NKROReport *report, NKROReport *prevReport)
 				uint8_t sc = (*mtx)[col][row];
 
 				switch (sc) {
+				case KBD_SC_SELECT_0:
+					layersDefaultLayer = 0;
+					break;
+				case KBD_SC_SELECT_1:
+					layersDefaultLayer = 1;
+					break;
+				case KBD_SC_SELECT_2:
+					layersDefaultLayer = 2;
+					break;
+				case KBD_SC_SELECT_3:
+					layersDefaultLayer = 3;
+					break;
 				case HID_KEYBOARD_SC_LEFT_SHIFT:
 				case HID_KEYBOARD_SC_RIGHT_SHIFT:
 					if (!(prevReport->modifiers &
@@ -229,7 +256,7 @@ kbdFillNKROReport(NKROReport *report, NKROReport *prevReport)
 				case KBD_SC_FN1:
 				case KBD_SC_FN2:
 				case KBD_SC_FN3:
-					continue;
+					break;
 				default:
 					if (!(prevReport->codeBmp[sc / 8] &
 					      (1 << (sc % 8))))
@@ -243,13 +270,7 @@ kbdFillNKROReport(NKROReport *report, NKROReport *prevReport)
 		}
 	}
 
-	/* zero unwanted scancodes */
-	report->codeBmp[KBD_SC_IGNORED / 8] &= ~(1 << (KBD_SC_IGNORED % 8));
-	report->codeBmp[KBD_SC_CAL_HI  / 8] &= ~(1 << (KBD_SC_CAL_HI  % 8));
-	report->codeBmp[KBD_SC_CAL_LO  / 8] &= ~(1 << (KBD_SC_CAL_LO  % 8));
-	report->codeBmp[KBD_SC_FN1     / 8] &= ~(1 << (KBD_SC_FN1     % 8));
-	report->codeBmp[KBD_SC_FN2     / 8] &= ~(1 << (KBD_SC_FN2     % 8));
-	report->codeBmp[KBD_SC_FN3     / 8] &= ~(1 << (KBD_SC_FN3     % 8));
+	expPostProcessNKROKbdReport(report);
 }
 
 /*

@@ -21,6 +21,7 @@
 #include "eeprom.h"
 #include "exp_types.h"
 #include "kbd.h"
+#include "reports.h"
 
 /* handling of 6-pin expansion header (P2) */
 
@@ -28,11 +29,13 @@ extern uint8_t	expMode;
 extern uint8_t	expVal1;
 extern uint8_t	expVal2;
 
-void	expInit(void);
 void	expClear(void);
 void	expReset(void);
 void	expMSTick(void);
 void	expKeyPositiveEdge(void);
+void	expPostProcessStdKbdReport(USB_KeyboardReport_Data_t *report,
+				   uint8_t usedKeyCodes);
+void	expPostProcessNKROKbdReport(NKROReport *report);
 void	expSetLockLEDs(uint8_t leds);
 void	expStore(void);
 void	expLoad(void);
