@@ -145,6 +145,7 @@ void	kbdFillNKROReport(NKROReport *report, NKROReport *prevReport);
 void	kbdReceiveReport(const void *report);
 void	kbdReceiveNKROReport(const void *report);
 void	kbdScan(void);
+uint8_t	kbdWantsWakeup(void);
 void	kbdStoreColSkips(void);
 void	kbdLoadColSkips(void);
 

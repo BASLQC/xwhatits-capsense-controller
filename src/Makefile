@@ -11,12 +11,13 @@
 
 # The board type and revision must match the controller
 
-#BOARD_TYPE    = BEAMSPRING
-BOARD_TYPE    = BEAMSPRING_DISPLAYWRITER
+BOARD_TYPE    = BEAMSPRING
+#BOARD_TYPE    = BEAMSPRING_DISPLAYWRITER
 #BOARD_TYPE    = MODEL_F
-BOARD_REV     = 1
+BOARD_REV     = 4
+USB_CURRENT   = 100
 
-VERSION      = 0.6.2
+VERSION      = 0.6.6
 
 MCU          = atmega32u2
 ARCH         = AVR8
@@ -44,7 +45,8 @@ CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER \
 	       -Wall\
 	       -DVERSION=\"$(VERSION)\" \
 	       -D$(BOARD_TYPE) \
-	       -DBOARD_REV=$(BOARD_REV)
+	       -DBOARD_REV=$(BOARD_REV) \
+	       -DUSB_CURRENT=$(USB_CURRENT)
 LD_FLAGS     =
 
 # Default target

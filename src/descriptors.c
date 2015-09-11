@@ -220,9 +220,10 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor = {
 		.ConfigurationNumber    = 1,
 		.ConfigurationStrIndex  = NO_DESCRIPTOR,
 
-		.ConfigAttributes       = (USB_CONFIG_ATTR_RESERVED),
+		.ConfigAttributes       = (USB_CONFIG_ATTR_RESERVED |
+					   USB_CONFIG_ATTR_REMOTEWAKEUP),
 
-		.MaxPowerConsumption    = USB_CONFIG_POWER_MA(500)
+		.MaxPowerConsumption    = USB_CONFIG_POWER_MA(USB_CURRENT)
 	},
 
 	.KeyboardInterface = {

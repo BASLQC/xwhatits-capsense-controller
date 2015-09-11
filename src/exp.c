@@ -38,19 +38,28 @@ expInit(void)
  *
  */
 void
-expReset(void)
+expClear(void)
 {
-	msCtr = 0;
-
 	PORTB &= ~(1 << PB4);
 	PORTB &= ~(1 << PB5);
 	PORTB &= ~(1 << PB6);
 	PORTB &= ~(1 << PB7);
 
+	msCtr = 0;
+	solenoidQueue = 0;
+}
+
+/*
+ *
+ */
+void
+expReset(void)
+{
+	expClear();
+
 	switch (expMode) {
 	case expModeSolenoid:
 		PORTB |= (1 << PB7);	// enable 9V SMPS
-		solenoidQueue = 0;
 		break;
 	default:
 		break;

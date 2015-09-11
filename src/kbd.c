@@ -355,6 +355,20 @@ kbdScanColumn(uint8_t col)
 /*
  *
  */
+uint8_t
+kbdWantsWakeup(void)
+{
+	for (uint8_t col = 0; col < KBD_COLS; col++)
+		for (uint8_t row = 0; row < KBD_ROWS; row++)
+			if (kbd[col][row] > KBD_DEBOUNCE_THRESH &&
+			    layerMatrix0[col][row] >= HID_KEYBOARD_SC_A)
+				return 1;
+	return 0;
+}
+
+/*
+ *
+ */
 void
 kbdStoreColSkips(void)
 {

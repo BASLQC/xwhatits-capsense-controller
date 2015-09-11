@@ -70,9 +70,16 @@ USB_ClassInfo_HID_Device_t nkroHIDIface = {
 	}
 };
 
-/*
- * Event handlers
- */
+void
+EVENT_USB_Device_Connect(void)
+{
+	expReset();
+}
+void
+EVENT_USB_Device_Disconnect(void)
+{
+	expClear();
+}
 void
 EVENT_USB_Device_ConfigurationChanged(void)
 {
@@ -80,8 +87,6 @@ EVENT_USB_Device_ConfigurationChanged(void)
 	HID_Device_ConfigureEndpoints(&genericHIDIface);
 	HID_Device_ConfigureEndpoints(&nkroHIDIface);
 	USB_Device_EnableSOFEvents();
-
-	expReset();
 }
 void
 EVENT_USB_Device_ControlRequest(void)
@@ -192,6 +197,12 @@ main(void)
 
 	for (;;) {
 		kbdScan();
+
+		if (USB_DeviceState == DEVICE_STATE_Unattached ||
+		    USB_DeviceState == DEVICE_STATE_Suspended)
+			if (USB_Device_RemoteWakeupEnabled && kbdWantsWakeup())
+				USB_Device_SendRemoteWakeup();
+
 		HID_Device_USBTask(&keyboardHIDIface);
 		HID_Device_USBTask(&genericHIDIface);
 		HID_Device_USBTask(&nkroHIDIface);

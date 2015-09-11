@@ -29,6 +29,7 @@ extern uint8_t	expVal1;
 extern uint8_t	expVal2;
 
 void	expInit(void);
+void	expClear(void);
 void	expReset(void);
 void	expMSTick(void);
 void	expKeyPositiveEdge(void);

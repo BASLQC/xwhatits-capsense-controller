@@ -723,7 +723,7 @@ void Frontend::colSkipsHelpButtonClicked(void)
  */
 void Frontend::queryKbdVersion(void)
 {
-    kbdVersionLabel->setText("Firmware version:\t" +
+    kbdVersionLabel->setText("Firmware version:\t\t" +
             QString::fromStdString(diag.version()));
 }
 
