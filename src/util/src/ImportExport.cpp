@@ -24,6 +24,8 @@ static bool importColumnSkips(QString &line,
         vector<bool> &skips, QString &errorString);
 static bool importExpansionMode(QString &line,
         int &expMode, int &expVal1, int &expVal2, QString &errorString);
+static bool importMacroByte(QString &line, vector<unsigned char> &macroBytes,
+        QString &errorString);
 static bool importScancodeLine(QString &line, int &layer, int &row,
         std::vector<std::vector<std::vector<unsigned char>>> &scancodes,
         QString &errorString);
@@ -36,6 +38,7 @@ bool exportLayout(QString filename,
         std::vector<LayerConditionWatcher *> lcws,
         std::vector<bool> colSkips,
         int expMode, int expVal1, int expVal2,
+        std::vector<unsigned char> macroBytes,
         QString &errorString)
 {
     int layers = keys.size();
@@ -103,9 +106,19 @@ bool exportLayout(QString filename,
     ts << '\n';
 
     ts << "# Expansion header\n";
-    ts << "+ " << expMode << ' ' << expVal1 << ' ' << expVal2;
-
+    ts << "+ " << expMode << ' ' << expVal1 << ' ' << expVal2 << '\n';
     ts << '\n';
+
+    ts << "# Macros\n";
+    ts << "{\n";
+    ts.setFieldAlignment(QTextStream::AlignRight);
+    ts.setIntegerBase(16);
+    ts.setPadChar('0');
+    for (auto c: macroBytes)
+        ts << '\t' << "0x" << qSetFieldWidth(2) << (unsigned int)c <<
+            qSetFieldWidth(1) << '\n';
+    ts.reset();
+    ts << "}\n";
 
     f.close();
 
@@ -199,6 +212,25 @@ bool importExpansionMode(QString &line, int &expMode, int &expVal1,
 /*
  *
  */
+bool importMacroByte(QString &line, vector<unsigned char> &macroBytes,
+        QString &errorString)
+{
+    bool ok;
+    int val = line.toInt(&ok, 0);
+    if (!ok)
+    {
+        errorString = "macro byte line has incorrect syntax: \"" + line + '"';
+        return false;
+    }
+
+    macroBytes.push_back(val);
+
+    return true;
+}
+
+/*
+ *
+ */
 bool importScancodeLine(QString &line, int &layer, int &row,
         std::vector<std::vector<std::vector<unsigned char>>> &scancodes,
         QString &errorString)
@@ -234,6 +266,7 @@ bool importLayout(QString filename,
         std::vector<LayerCondition> &layerConditions,
         std::vector<bool> &colSkips,
         int &expMode, int &expVal1, int &expVal2,
+        std::vector<unsigned char> &macroBytes,
         QString &errorString)
 {
     QFile f(filename);
@@ -249,6 +282,7 @@ bool importLayout(QString filename,
     QString line;
     int row = 0;
     int layer = 0;
+    bool inMacros = false;
     scancodes.push_back(vector<vector<unsigned char>>());
     while (!(line = ls.readLine()).isNull())
     {
@@ -261,6 +295,15 @@ bool importLayout(QString filename,
 
             continue;
         }
+        else if (inMacros)
+        {
+            if (line[0] == '}')
+                inMacros = false;
+            else if (!importMacroByte(line, macroBytes, errorString))
+                return false;
+        }
+        else if (line[0] == '{')
+            inMacros = true;
         else if (line[0] == '(')
         {
             /* import layer condition */

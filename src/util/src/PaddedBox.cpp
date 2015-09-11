@@ -14,24 +14,23 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.  
  ******************************************************************************/
-#ifndef SCANCODES_H
-#define SCANCODES_H
+#include "PaddedBox.h"
 
-#include <string>
-
-std::string scancodeName(unsigned char scancode);
-
-enum ScancodesModBits
+/*
+ *
+ */
+PaddedBox::PaddedBox(QWidget *child, QWidget *parent):
+    QWidget(parent)
 {
-    smbLCtrl,
-    smbLShift,
-    smbLAlt,
-    smbLGUI,
-    smbRCtrl,
-    smbRShift,
-    smbRAlt,
-    smbRGUI
-};
-std::string scancodeModName(unsigned char mod);
+    QHBoxLayout *hbox = new QHBoxLayout;
+    hbox->addStretch();
+    hbox->addWidget(child);
+    hbox->addStretch();
 
-#endif
+    QVBoxLayout *vbox = new QVBoxLayout;
+    vbox->addStretch();
+    vbox->addLayout(hbox);
+    vbox->addStretch();
+
+    setLayout(vbox);
+}

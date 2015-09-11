@@ -14,24 +14,35 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.  
  ******************************************************************************/
-#ifndef SCANCODES_H
-#define SCANCODES_H
+#ifndef STATUSBAR_H
+#define STATUSBAR_H
 
-#include <string>
+#include <QBasicTimer>
+#include <QDebug>
+#include <QLabel>
+#include <QStatusBar>
+#include "DiagInterface.h"
 
-std::string scancodeName(unsigned char scancode);
-
-enum ScancodesModBits
+class StatusBar: public QStatusBar
 {
-    smbLCtrl,
-    smbLShift,
-    smbLAlt,
-    smbLGUI,
-    smbRCtrl,
-    smbRShift,
-    smbRAlt,
-    smbRGUI
+    Q_OBJECT
+
+    public:
+        StatusBar(DiagInterface &diag, QWidget *parent = NULL);
+
+    protected:
+        virtual void timerEvent(QTimerEvent *);
+
+    private:
+        DiagInterface &diag;
+        QBasicTimer pollTimer;
+        QLabel *firmwareVersionLabel;
+        QLabel *controllerTypeLabel;
+        QLabel *matrixSizeLabel;
+        QLabel *nkroStateLabel;
+
+        void updateStatus(void);
+        void updateVersion(void);
 };
-std::string scancodeModName(unsigned char mod);
 
 #endif

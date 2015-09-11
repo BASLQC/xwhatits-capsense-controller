@@ -1,4 +1,4 @@
-VERSION = 0.8.0
+VERSION = 0.9.0
 VERSTR = '\\"$${VERSION}\\"'
 DEFINES += VER=\"$${VERSTR}\"
 
@@ -27,7 +27,7 @@ unix:!macx {
     INCLUDEPATH += \
         /usr/include \
         /usr/include/hidapi
-    CONFIG += debug
+    CONFIG += debug silent
 }
 win32 { 
     LIBS += -Lc:/lib -lhidapi-0
@@ -44,24 +44,38 @@ macx {
 }
 
 HEADERS += \
+        src/ColSkips.h \
         src/DiagInterface.h \
+        src/ExpansionHeader.h \
         src/Frontend.h \
         src/ImportExport.h \
         src/Key.h \
         src/KeyMon.h \
-        src/LayerConditionWatcher.h \
+        src/LayerConditions.h \
+        src/Macro.h \
+        src/Macros.h \
         src/NonFocused.h \
-        src/Scancodes.h
+        src/PaddedBox.h \
+        src/Scancodes.h \
+        src/StatusBar.h \
+        src/VoltageThreshold.h
 
 SOURCES += \
+        src/ColSkips.cpp \
         src/DiagInterface.cpp \
+        src/ExpansionHeader.cpp \
         src/Frontend.cpp \
         src/ImportExport.cpp \
         src/Key.cpp \
         src/KeyMon.cpp \
-        src/LayerConditionWatcher.cpp \
+        src/LayerConditions.cpp \
+        src/Macro.cpp \
+        src/Macros.cpp \
         src/NonFocused.cpp \
+        src/PaddedBox.cpp \
         src/Scancodes.cpp \
+        src/StatusBar.cpp \
+        src/VoltageThreshold.cpp \
         src/ibm_capsense_usb_util.cpp
 
 macx {

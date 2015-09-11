@@ -26,6 +26,9 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMainWindow>
+#include <QMenu>
+#include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScrollArea>
@@ -35,15 +38,21 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <stdexcept>
+#include "ColSkips.h"
 #include "DiagInterface.h"
+#include "ExpansionHeader.h"
 #include "ImportExport.h"
 #include "Key.h"
 #include "KeyMon.h"
-#include "LayerConditionWatcher.h"
+#include "LayerConditions.h"
+#include "Macros.h"
 #include "NonFocused.h"
+#include "PaddedBox.h"
+#include "StatusBar.h"
+#include "VoltageThreshold.h"
 #include "exp_types.h"
 
-class Frontend: public QWidget
+class Frontend: public QMainWindow
 {
     Q_OBJECT
 
@@ -54,76 +63,34 @@ class Frontend: public QWidget
     private:
         DiagInterface &diag;
         bool kbdFocusEnabled;
-        NonFocusedSpinBox *vrefSpinBox;
-        QTimer *vrefMaskTimer;
-        QPushButton *autoCalButton;
-        QPushButton *storeVrefButton;
         QPushButton *bootloaderButton;
-        QTabWidget *matrixTabWidget;
-        QLabel *kbdVersionLabel;
-        QLabel *kbdTypeLabel;
-        QLabel *kbdMatrixSizeLabel;
-        QLabel *kbdLayerCountLabel;
-        QLabel *kbdNKROLabel;
-        NonFocusedComboBox *expModeCombo;
-        QLabel *expVal1Label;
-        NonFocusedSpinBox *expVal1SpinBox;
-        QLabel *expVal2Label;
-        NonFocusedSpinBox *expVal2SpinBox;
+        QTabWidget *mainTabWidget;
         KeyMon *keyMon;
-        QGridLayout *layerConditionsGrid;
-        QGridLayout *colSkipsGrid;
-        std::vector<QCheckBox *> colSkipsCBs;
+        ExpansionHeader *expansionHeader;
+        LayerConditions *layerConditions;
+        ColSkips *colSkips;
+        Macros *macros;
         QTimer *keyStatesTimer;
         std::vector<std::vector<std::vector<Key *>>> keyWidgets;
-        std::vector<LayerConditionWatcher *> layerConditionWatchers;
-        unsigned short cachedVref;
 
-        void buildColSkips(void);
-        std::vector<bool> colSkipsFromCBs(void);
+        void buildMenuBar(void);
 
     private slots:
-        void updateVref(void);
-        void vrefValueChanged(int);
-        void setVrefFromBox(void);
-        void autoCalButtonClicked(void);
-        void autoCalComplete(void);
-        void autoCalEnableComplete(void);
-        void storeVrefButtonClicked(void);
-        void storeVrefComplete(void);
-        void vrefHelpButtonClicked(void);
+        void enterBootloader(void);
 
-        void populateExpModeCombo(void);
-        void adjustExpVals(ExpMode mode);
-        void updateExpMode(void);
-        void setExpMode(int);
-        void storeExpModeButtonClicked(void);
-        void storeExpModeComplete(void);
-
-        void bootloaderButtonClicked(void);
-        void bootloaderHelpButtonClicked(void);
-
-        void guiKbdLockHelpButtonClicked(void);
-        void guiKbdLockButtonToggled(bool checked);
+        void guiKbdLockToggled(bool checked);
 
         void haltScanButtonToggled(bool checked);
         void haltScanHelpButtonClicked(void);
 
         void buildMatrix(void);
-        void buildLayerConditions(void);
-        void queryKbdVersion(void);
 
         void updateKeyStates(void);
 
-        void updateColSkips(void);
-        void colSkipCBChanged(int);
-        void storeColSkipsButtonClicked(void);
-        void storeColSkipsComplete(void);
-        void colSkipsHelpButtonClicked(void);
         void setKeyColsEnabled(void);
 
-        void importMatrixButtonClicked(void);
-        void exportMatrixButtonClicked(void);
+        void importConfig(void);
+        void exportConfig(void);
 };
 
 #endif

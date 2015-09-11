@@ -24,19 +24,21 @@
 #include <stdexcept>
 #include <vector>
 #include "Key.h"
-#include "LayerConditionWatcher.h"
+#include "LayerConditions.h"
 
 bool exportLayout(QString filename,
         std::vector<std::vector<std::vector<Key *>>> keys,
         std::vector<LayerConditionWatcher *> lcws,
         std::vector<bool> colSkips,
         int expMode, int expVal1, int expVal2,
+        std::vector<unsigned char> macroBytes,
         QString &errorString);
 bool importLayout(QString filename,
         std::vector<std::vector<std::vector<unsigned char>>> &scancodes,
         std::vector<LayerCondition> &layerConditions,
         std::vector<bool> &colSkips,
         int &expMode, int &expVal1, int &expVal2,
+        std::vector<unsigned char> &macroBytes,
         QString &errorString);
 
 #endif

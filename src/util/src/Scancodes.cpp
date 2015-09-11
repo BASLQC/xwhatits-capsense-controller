@@ -29,6 +29,8 @@ std::string scancodeName(unsigned char scancode)
             return "(PRESSED)";
         case 0x02:
             return "(RELEASED)";
+        case 0x03:
+            return "Exp Toggle";
         case 0x04:
             return "a and A";
         case 0x05:
@@ -338,7 +340,7 @@ std::string scancodeName(unsigned char scancode)
         case 0x9D:
             return "Prior";
         case 0x9E:
-            return "Return";
+            return "Return (alt)";
         case 0x9F:
             return "Separator";
         case 0xA0:
@@ -434,4 +436,32 @@ std::string scancodeName(unsigned char scancode)
         default:
             return "";
     }
+}
+
+/*
+ *
+ */
+std::string scancodeModName(unsigned char mod)
+{
+    switch (mod)
+    {
+        case smbLCtrl:
+            return "LCtrl";
+        case smbLShift:
+            return "LShift";
+        case smbLAlt:
+            return "LAlt";
+        case smbLGUI:
+            return "LGUI";
+        case smbRCtrl:
+            return "RCtrl";
+        case smbRShift:
+            return "RShift";
+        case smbRAlt:
+            return "RAlt";
+        case smbRGUI:
+            return "RGUI";
+    }
+
+    return "(unknown)";
 }

@@ -32,10 +32,9 @@ typedef struct {
 	uint8_t *addr;
 } MacroDef;
 
-extern MacroDef macrosDefs[MACROS_NUM_MACROS];
-
 void macrosInit(void);
 void macrosLoad(void);
-void macrosPostProcessNKROReport(NKROReport *report, NKROReport *prevReport);
+bool macrosProcessScan(void);
+void macrosMSTick(void);
 
 #endif

@@ -374,7 +374,7 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor = {
 				      ENDPOINT_ATTR_NO_SYNC |
 				      ENDPOINT_USAGE_DATA),
 		.EndpointSize      = NKRO_EPSIZE,
-		.PollingIntervalMS = 0x0a
+		.PollingIntervalMS = 0x01
 	},
 
 	.ExtrakeyInterface = {

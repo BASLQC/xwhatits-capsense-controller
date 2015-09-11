@@ -21,30 +21,39 @@
  * (1 byte scancode)
  * (1 byte modStates)
  * (1 byte modMask)
- * (1 byte numMakeCmds)
- * (1 byte numBreakCmds)
- * ...then repeated pairs of:
+ * (1 byte numMakeBytes)
+ * (1 byte numBreakBytes)
+ * ...then repeated:
  * (1 byte cmd)
- * (1 byte val)
+ * (1 byte val) <-- optional
  *
  * If it's the last macro, it's followed by a null byte.
  */
-#define MACROS_OFFS_NUMMAKECMDS  3
-#define MACROS_OFFS_NUMBREAKCMDS (MACROS_OFFS_NUMMAKECMDS + 1)
-#define MACROS_OFFS_FIRSTMAKECMD (MACROS_OFFS_NUMBREAKCMDS + 1)
+#define MACROS_OFFS_MAKEBYTES  3
+#define MACROS_OFFS_BREAKBYTES (MACROS_OFFS_MAKEBYTES + 1)
+#define MACROS_OFFS_FIRSTCMD   (MACROS_OFFS_BREAKBYTES + 1)
 
 typedef enum {
 	msIdle
 } MacroState;
 
-MacroDef macrosDefs[MACROS_NUM_MACROS];
+static MacroDef macrosDefs[MACROS_NUM_MACROS];
 
-//static MacroState state;
-static int8_t     currMacro;
-static uint8_t    currPos;
+static uint8_t modStack[8];
+static int8_t  modStackIdx;
 
-static uint8_t *macrosLoadDef(uint8_t macroIdx, uint8_t *addr);
-//static void     macrosPlayMacro(NKROReport *report, NKROReport *prevReport);
+static uint8_t macroMods;
+static uint8_t prevKbdMods;
+
+static int8_t currMacro;
+static int8_t currPos;
+static bool   haveAdvanced;
+static int8_t remainingMakeBytes;
+static int8_t remainingBreakBytes;
+static bool   retainPressedMods;
+
+static uint8_t dlyRemainingTenMS;
+static uint8_t dlyMSTicks;
 
 /*
  *
@@ -52,25 +61,16 @@ static uint8_t *macrosLoadDef(uint8_t macroIdx, uint8_t *addr);
 void
 macrosInit(void)
 {
-	currMacro = -1;
+	modStackIdx = -1;
+	currMacro   = -1;
+	macroMods   =  0;
 	macrosLoad();
-}
-
-/*
- *
- */
-void
-macrosLoad(void)
-{
-	uint8_t *addr = (uint8_t *)EEP_MACROS;
-	for (uint8_t i = 0; i < MACROS_NUM_MACROS; i++)
-		addr = macrosLoadDef(i, addr);
 }
 
 /*
  * returns pointer to start of next macro in EEPROM
  */
-uint8_t *
+static uint8_t *
 macrosLoadDef(uint8_t macroIdx, uint8_t *addr)
 {
 	memset(&macrosDefs[macroIdx], 0, sizeof(MacroDef));
@@ -89,9 +89,9 @@ macrosLoadDef(uint8_t macroIdx, uint8_t *addr)
 	macrosDefs[macroIdx].modMask   = eeprom_read_byte(addr++);
 
 	/* find start of next header */
-	addr += eeprom_read_byte(addr) * 2;
-	addr++;
-	addr += eeprom_read_byte(addr) * 2;
+	addr += ((eeprom_read_byte(addr)) +
+		 (eeprom_read_byte(addr + 1)));
+	addr += 2;
 
 	return addr;
 }
@@ -100,53 +100,390 @@ macrosLoadDef(uint8_t macroIdx, uint8_t *addr)
  *
  */
 void
-macrosPostProcessNKROReport(NKROReport *report, NKROReport *prevReport)
+macrosLoad(void)
 {
-	DDRB  |= (1 << PB4);
-	DDRB  |= (1 << PB5);
-	DDRB  |= (1 << PB6);
-	PORTB &= (1 << PB4); // scr
-	PORTB &= (1 << PB5); // num
-	PORTB &= (1 << PB6); // caps
+	uint8_t *addr = (uint8_t *)EEP_MACROS;
+	for (uint8_t i = 0; i < MACROS_NUM_MACROS; i++)
+		addr = macrosLoadDef(i, addr);
+}
 
-	//if (currMacro != -1)
-	//	macrosPlayMacro(report, prevReport);
+/*
+ *
+ */
+static void
+incPos(uint8_t bytes)
+{
+	if (remainingMakeBytes > 0) {
+		currPos += bytes;
+		remainingMakeBytes -= bytes;
+		if (remainingMakeBytes < 0)
+			remainingMakeBytes = 0;
+	} else if (remainingBreakBytes > 0) {
+		currPos += bytes;
+		remainingBreakBytes -= bytes;
+		if (remainingBreakBytes < 0)
+			remainingBreakBytes = 0;
+	}
 
-	for (uint8_t i = 0; i < MACROS_NUM_MACROS; i++) {
-		uint8_t sc = macrosDefs[i].scancode;
-		PORTB |= (1 << PB6);
-		if (sc == KBD_SC_IGNORED)
-			break;
+	haveAdvanced = true;
+}
 
-		/* match scancode */
-		if (!(report->codeBmp[sc / 8] & (1 << (sc % 8))))
-			continue;
-
-		PORTB |= (1 << PB5);
-
-		/* match modifiers, doing cool thing copied from Soarer
-		 * where we take care of Shift matching either LShift or
-		 * RShift while only using two bytes... */
-		uint8_t mods = report->modifiers;
-
-		/* cool thing (see above). maybe soarer does this properly. */
-		mods |= ((mods >> 4) &
-			 (macrosDefs[i].modStates >> 4 &
-			  macrosDefs[i].modStates));
-		if ((report->modifiers       & macrosDefs[i].modMask) !=
-		    (macrosDefs[i].modStates & macrosDefs[i].modMask))
-			continue;
-
-		currMacro = i;
-		currPos = 0;
-		break;
+/*
+ *
+ */
+static void
+macroPress(uint8_t sc)
+{
+	static bool haveMade = false;
+	if (!haveMade) {
+		haveMade = true;
+		if (sc <= HID_KEYBOARD_SC_RIGHT_GUI)
+			kbdSCBmp[sc / 8] |=  (1 << (sc % 8));
+	} else {
+		haveMade = false;
+		if (sc <= HID_KEYBOARD_SC_RIGHT_GUI)
+			kbdSCBmp[sc / 8] &= ~(1 << (sc % 8));
+		incPos(2);
 	}
 }
 
 /*
  *
  */
-void
-macrosPlayMakeMacro(NKROReport *report, NKROReport *prevReport)
+static void
+macroAssignMods(uint8_t mods)
 {
+	incPos(2);
+	macroMods = mods;
+}
+
+/*
+ *
+ */
+static void
+macroSetMods(uint8_t mods)
+{
+	incPos(2);
+	macroMods |= mods;
+}
+
+/*
+ *
+ */
+static void
+macroClearMods(uint8_t mods)
+{
+	incPos(2);
+	macroMods &= ~mods;
+}
+
+/*
+ *
+ */
+static void
+macroToggleMods(uint8_t mods)
+{
+	incPos(2);
+	macroMods ^= mods;
+}
+
+/*
+ * we don't incPos here, as it's used in conjunction with other commands
+ */
+static void
+macroPushMods(void)
+{
+	/* don't overflow stack */
+	if (modStackIdx >= (int8_t)(sizeof(modStack) - 1)) {
+		modStackIdx = sizeof(modStack) - 1;
+		return;
+	}
+
+	modStackIdx++;
+	modStack[modStackIdx] = macroMods;
+}
+
+/*
+ *
+ */
+static void
+macroPopMods(void)
+{
+	incPos(1);
+
+	/* don't underflow stack */
+	if (modStackIdx < 0) {
+		modStackIdx = -1;
+		return;
+	}
+
+	macroMods = modStack[modStackIdx];
+	modStackIdx--;
+}
+
+/*
+ *
+ */
+static void
+macroPopAllMods(void)
+{
+	incPos(1);
+
+	/* don't do anything if the stack is empty */
+	if (modStackIdx < 0) {
+		modStackIdx = -1;
+		return;
+	}
+
+	macroMods = modStack[0];
+	modStackIdx = -1;
+
+}
+
+/*
+ *
+ */
+static void
+macroDelay(uint8_t val)
+{
+	static bool haveStarted = false;
+
+	if (!haveStarted) {
+		haveStarted = true;
+		dlyRemainingTenMS = val;
+	} else if (dlyRemainingTenMS == 0) {
+		haveStarted = false;
+		incPos(2);
+	}
+}
+
+/*
+ *
+ */
+static void
+clearTriggerSC(void)
+{
+	uint8_t sc = macrosDefs[currMacro].scancode;
+	kbdSCBmp[sc / 8] &= ~(1 << (sc % 8));
+}
+
+/*
+ * While playing macros, we want to retain control over mods, but if new mods
+ * are pressed or released while it's playing then include/remove them. We
+ * can't use the kbdSCBmp/kbdPrevSCBmp as a method, as that's being modified by
+ * our macro.
+ */
+static void
+captureModChanges(void)
+{
+	const uint8_t currMods = kbdSCMods(kbdSCBmp);
+
+	uint8_t newlyPressedMods  = ( currMods & ~prevKbdMods);
+	uint8_t newlyReleasedMods = (~currMods & prevKbdMods);
+
+	macroMods |=  newlyPressedMods;
+	macroMods &= ~newlyReleasedMods;
+
+	prevKbdMods = currMods;
+}
+
+/*
+ *
+ */
+static bool
+cmdHasVal(uint8_t cmd)
+{
+	switch (cmd)
+	{
+	case mcPress:
+	case mcAssignMods:
+	case mcSetMods:
+	case mcClearMods:
+	case mcToggleMods:
+	case mcDelay:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/*
+ * returns true if we changed kbdSCBmp
+ */
+static bool
+playCurrMacro(void)
+{
+	uint8_t *addr = macrosDefs[currMacro].addr;
+
+	captureModChanges();
+
+	if (currPos == -1) {
+		remainingMakeBytes = eeprom_read_byte(addr +
+						      MACROS_OFFS_MAKEBYTES);
+		remainingBreakBytes = -1;
+		currPos = 0;
+		clearTriggerSC();
+		return false;
+	} else if (remainingMakeBytes == 0 && remainingBreakBytes == -1) {
+		if (kbdSCIsIn(macrosDefs[currMacro].scancode, kbdSCBmp)) {
+			clearTriggerSC();
+			return false;
+		}
+
+		remainingBreakBytes = eeprom_read_byte(addr +
+						       MACROS_OFFS_BREAKBYTES);
+		if (remainingBreakBytes & (1 << 7)) {
+			retainPressedMods = true;
+			remainingBreakBytes &= ~(1 << 7);
+		} else
+			retainPressedMods = false;
+		return false;
+	} else if (remainingMakeBytes == 0 && remainingBreakBytes == 0) {
+		currMacro = -1;
+		clearTriggerSC();
+		if (!retainPressedMods)
+			macroMods = 0;
+		return false;
+	}
+
+	clearTriggerSC();
+
+	addr += (MACROS_OFFS_FIRSTCMD + currPos);
+	uint8_t cmd = eeprom_read_byte(addr);
+
+	bool pushMods;
+	if (cmd & mcPushMods) {
+		pushMods = true;
+		cmd &= ~mcPushMods;
+	} else
+		pushMods = false;
+
+	uint8_t val;
+	if (cmdHasVal(cmd))
+		val = eeprom_read_byte(addr + 1);
+
+	/* don't push twice or more if haven't advanced from previous command */
+	if (haveAdvanced && pushMods)
+		macroPushMods();
+
+	haveAdvanced = false;
+	bool scBmpChanged = true;
+	switch (cmd) {
+	case mcPress:
+		macroPress(val);
+		break;
+	case mcAssignMods:
+		macroAssignMods(val);
+		break;
+	case mcSetMods:
+		macroSetMods(val);
+		break;
+	case mcClearMods:
+		macroClearMods(val);
+		break;
+	case mcToggleMods:
+		macroToggleMods(val);
+		break;
+	case mcPopMods:
+		macroPopMods();
+		break;
+	case mcPopAllMods:
+		macroPopAllMods();
+		break;
+	case mcDelay:
+		macroDelay(val);
+		scBmpChanged = false;
+		break;
+	default:
+		incPos(1);
+		scBmpChanged = false;
+		break;
+	}
+
+	/* assign our version of the mods */
+	kbdSCMods(kbdSCBmp) = macroMods;
+
+	return scBmpChanged;
+}
+
+/*
+ *
+ */
+static void
+startMacro(uint8_t idx)
+{
+	currMacro = idx;
+	currPos   = -1;
+
+	dlyRemainingTenMS = 0;
+	dlyMSTicks        = 0;
+
+	haveAdvanced = true;
+
+	clearTriggerSC();
+	macroMods = prevKbdMods = kbdSCMods(kbdSCBmp);
+}
+
+/*
+ *
+ */
+bool
+macrosProcessScan(void)
+{
+	if (currMacro != -1)
+		return playCurrMacro();
+
+	/* if macro is not playing, apply saved mods (if any) */
+	kbdSCMods(kbdSCBmp) = (kbdSCMods(kbdSCBmp) | macroMods);
+
+	for (uint8_t i = 0; i < MACROS_NUM_MACROS; i++) {
+		uint8_t sc = macrosDefs[i].scancode;
+		if (sc == KBD_SC_IGNORED)
+			break;
+
+		/* match scancode key-down change-of-state */
+		if (!( kbdSCIsIn(sc, kbdSCBmp) &&
+		      !kbdSCIsIn(sc, kbdPrevSCBmp)))
+			continue;
+
+		uint8_t state = macrosDefs[i].modStates;
+		uint8_t mask  = macrosDefs[i].modMask;
+		uint8_t mods  = kbdSCMods(kbdSCBmp);
+
+		/* reject if a mod is present that has been excluded */
+		if (mods & (~state & mask))
+			continue;
+
+		if ((state & mask) == (mods & mask)) {
+			/* have basic match */
+			startMacro(i);
+			break;
+		} else if (!(mods & mask)) {
+			/* check for special "either-or" match */
+			uint8_t orState = (state & state >> 4) & mask;
+			uint8_t orMods  = (mods  | mods  >> 4) & mask;
+			if (orMods && (orState == orMods)) {
+				startMacro(i);
+				break;
+			}
+		}
+	}
+
+	return false;
+}
+
+/*
+ * stored as tens of milliseconds
+ */
+void
+macrosMSTick(void)
+{
+	if (dlyRemainingTenMS == 0)
+		return;
+
+	dlyMSTicks++;
+	if (dlyMSTicks == 10) {
+		dlyMSTicks = 0;
+		dlyRemainingTenMS--;
+	}
 }

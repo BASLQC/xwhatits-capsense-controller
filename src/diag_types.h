@@ -31,7 +31,9 @@ typedef enum {
 	drExpMode,
 	drKbdColSkips,
 	drEEPROM,
-        drDebug
+        drDebug,
+        drMacroEEPROMSize,
+        drMacros
 } DiagReportState;
 
 typedef enum {
@@ -49,7 +51,9 @@ typedef enum {
 	dcSetKbdColSkips,
 	dcStoreKbdColSkips,
 	dcWriteEEPROMByte,
-	dcSetScanEnabled
+	dcSetScanEnabled,
+	dcWriteMacroSegment,
+	dcLoadMacros
 } DiagReportCommand;
 
 typedef enum {

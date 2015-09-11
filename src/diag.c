@@ -24,26 +24,308 @@ void (*bootloader)(void) = (void *)0x1800;
 
 static DiagReportState diagReportState;
 
-static void diagReportInfo(uint8_t *reportData, bool usingNKROReport);
-static void diagReportKbd(uint8_t *reportData,
-			  uint8_t startCol,
-			  uint8_t endCol);
-static void diagReportVref(uint8_t *reportData);
-static void diagReportScanCodes(uint8_t *reportData);
-static void diagReportLayerConditions(uint8_t *reportData);
-static void diagReportVersion(uint8_t *reportData);
-static void diagReportExpMode(uint8_t *reportData);
-static void diagReportKbdColSkips(uint8_t *reportData);
-static void diagReportEEPROM(uint8_t *reportData);
-static void diagReportDebug(uint8_t *reportData);
-static void diagSetScanCode(uint8_t layer,
-			    uint8_t col,
-			    uint8_t row,
-			    uint8_t sc);
-static void diagSetLayerCondition(uint8_t conditionIdx, uint8_t val);
-static void diagSetExpMode(uint8_t mode, uint8_t val1, uint8_t val2);
-static void diagSetKbdColSkips(const uint8_t *reportData);
-static void diagWriteEEPROMByte(uint8_t *addr, uint8_t val);
+/*
+ *
+ */
+static void
+diagReportInfo(uint8_t *reportData, bool usingNKROReport)
+{
+	reportData[1] = 4; // number of layers
+	reportData[2] = LAYERS_NUM_CONDITIONS;
+	reportData[3] = KBD_COLS;
+	reportData[4] = KBD_ROWS;
+
+#if defined(BEAMSPRING)
+	reportData[5] = dktBeamspring;
+#elif defined(BEAMSPRING_DISPLAYWRITER)
+	reportData[5] = dktBeamspringDisplaywriter;
+#elif defined(MODEL_F)
+	reportData[5] = dktModelF;
+#else
+#	error "keyboard type not known!"
+#endif
+	reportData[6] = usingNKROReport;
+}
+
+/*
+ *
+ */
+static void
+diagReportKbd(uint8_t *reportData, uint8_t startCol, uint8_t endCol)
+{
+	/* data is sent column-major, one column per byte (even on 4-row kbd) */
+	uint8_t currByte = 1;
+
+	for (uint8_t col = startCol; col <= endCol; col++, currByte++)
+		for (uint8_t row = 0; row < KBD_ROWS; row++)
+			if (scanState[col][row] >= SCAN_DB_THRESH)
+				reportData[currByte] |= (1 << row);
+}
+
+/*
+ *
+ */
+static void
+diagReportVref(uint8_t *reportData)
+{
+	uint16_t vref = vrefGet();
+	reportData[1] = vref & 0xff;
+	reportData[2] = vref >> 8;
+}
+
+/*
+ *
+ */
+static void
+diagReportScanCodes(uint8_t *reportData)
+{
+	static uint8_t currLayer = 0;
+	static uint8_t currSlice = 0;
+	static uint8_t currCol = 0;
+
+	uint8_t oldSelectedLayer = layersSelectedLayer;
+	if (currLayer != layersSelectedLayer)
+		layersLoad(currLayer);
+
+	/* first byte of report has layer in top two bits, the current row slice
+	 * in the next bit (we do four rows at a time), and column in the
+	 * bottom 5.
+	 */
+	reportData[1] = (currLayer << 6) | (currSlice << 5) | currCol;
+
+	if (KBD_ROWS == 4 || currSlice == 0)
+		for (uint8_t i = 0; i < 4; i++)
+			reportData[i + 2] = layersMatrix[currCol][i];
+	else if (KBD_ROWS == 8 && currSlice == 1)
+		for (uint8_t i = 4; i < 8; i++)
+			reportData[i - 2] = layersMatrix[currCol][i];
+
+	currCol++;
+	if (currCol == KBD_COLS) {
+		currCol = 0;
+
+#if KBD_ROWS == 8
+		currSlice++;
+		if (currSlice == 1)
+			return;
+		else
+			currSlice = 0;
+#endif
+
+		currLayer++;
+		if (currLayer == 4)
+			currLayer = 0;
+	}
+
+	if (currLayer != oldSelectedLayer)
+		layersLoad(oldSelectedLayer);
+}
+
+/*
+ *
+ */
+static void
+diagReportLayerConditions(uint8_t *reportData)
+{
+	static uint8_t currSet = 0; // sent in two halves
+
+	reportData[1] = currSet;
+
+	memcpy(&reportData[2],
+	       &layersConditions[currSet * (LAYERS_NUM_CONDITIONS / 2)],
+	       LAYERS_NUM_CONDITIONS / 2);
+
+	currSet++;
+	if (currSet == 2)
+		currSet = 0;
+}
+
+/*
+ *
+ */
+static void
+diagReportVersion(uint8_t *reportData)
+{
+	char *c = PSTR(VERSION);
+	uint8_t i = 1;
+
+	while ((reportData[i++] = pgm_read_byte(c++)) != '\0' && i < 7)
+		;
+	reportData[i] = '\0';
+}
+
+/*
+ *
+ */
+static void
+diagReportExpMode(uint8_t *reportData)
+{
+	reportData[1] = expMode;
+	reportData[2] = expVal1;
+	reportData[3] = expVal2;
+}
+
+/*
+ *
+ */
+static void
+diagReportKbdColSkips(uint8_t *reportData)
+{
+	memcpy(&reportData[1], kbdColSkips, sizeof(kbdColSkips));
+}
+
+/*
+ *
+ */
+static void
+diagReportEEPROM(uint8_t *reportData)
+{
+	static uint8_t fourByteSegment = 0;
+
+	uint16_t addr = fourByteSegment * 4;
+
+	reportData[1] = fourByteSegment;
+	eeprom_read_block(&reportData[2], addr, 4);
+
+	if (++fourByteSegment >= (1024 / 4))
+		fourByteSegment = 0;
+}
+
+/*
+ *
+ */
+static void
+diagReportDebug(uint8_t *reportData)
+{
+	//static uint8_t index = 0;
+
+	//reportData[1] = index;
+	//reportData[2] = kbdPrevSCBmp[index];
+
+	//index++;
+	//if (index >= sizeof(kbdPrevSCBmp))
+	//    index = 0;
+
+	reportData[1] = 0;
+	reportData[2] = scanTick;
+}
+
+/*
+ *
+ */
+static void
+diagReportMacroEEPROMSize(uint8_t *reportData)
+{
+	uint16_t size = EEP_MACROS_BND - EEP_MACROS;
+	reportData[1] =  size & 0xff;
+	reportData[2] = (size >> 8);
+}
+
+/*
+ *
+ */
+static void
+diagReportMacros(uint8_t *reportData)
+{
+	static uint8_t fourByteSegment = 0;
+
+	uint8_t *addr = (uint8_t *)(fourByteSegment * 4 + EEP_MACROS);
+
+	reportData[1] = fourByteSegment;
+	for (uint8_t i = 0; i < 4; i++) {
+		if ((uint16_t)addr >= EEP_MACROS_BND)
+			break;
+		reportData[2 + i] = eeprom_read_byte(addr++);
+	}
+
+	if (++fourByteSegment >= ((EEP_MACROS_BND - EEP_MACROS) / 4))
+		fourByteSegment = 0;
+}
+
+/*
+ *
+ */
+static void
+diagSetScanCode(uint8_t layer, uint8_t col, uint8_t row, uint8_t sc)
+{
+	if (layer >= 0 && layer < 4 &&
+	    col >= 0 && col < KBD_COLS &&
+	    row >= 0 && row < KBD_ROWS)
+		layersSetScancode(layer, col, row, sc);
+}
+
+/*
+ *
+ */
+static void
+diagSetLayerCondition(uint8_t conditionIdx, uint8_t val)
+{
+	if (conditionIdx >= 0 && conditionIdx < LAYERS_NUM_CONDITIONS)
+		layersSetCondition(conditionIdx, val);
+}
+
+/*
+ *
+ */
+static void
+diagSetExpMode(uint8_t mode, uint8_t val1, uint8_t val2)
+{
+	expMode = mode;
+	expVal1 = val1;
+	expVal2 = val2;
+
+	expReset();
+}
+
+/*
+ *
+ */
+static void
+diagSetKbdColSkips(const uint8_t *reportData)
+{
+	memcpy(kbdColSkips, &reportData[1], sizeof(kbdColSkips));
+}
+
+/*
+ *
+ */
+static void
+diagWriteEEPROMByte(uint8_t *addr, uint8_t val)
+{
+	if ((uint16_t)addr >= 1024)
+		return;
+	eeprom_update_byte(addr, val);
+}
+
+/*
+ *
+ */
+static void
+writeMacroByte(uint8_t *addr, uint8_t val)
+{
+	if (addr <  (uint8_t *)EEP_MACROS ||
+	    addr >= (uint8_t *)EEP_MACROS_BND)
+		return;
+
+	eeprom_update_byte(addr, val);
+}
+
+/*
+ *
+ */
+static void
+diagWriteMacroSegment(uint8_t fourByteSegment,
+		      uint8_t byte1,
+		      uint8_t byte2,
+		      uint8_t byte3,
+		      uint8_t byte4)
+{
+	uint8_t *addr = (uint8_t *)(fourByteSegment * 4 + EEP_MACROS);
+	writeMacroByte(addr++, byte1);
+	writeMacroByte(addr++, byte2);
+	writeMacroByte(addr++, byte3);
+	writeMacroByte(addr,   byte4);
+}
 
 /*
  *
@@ -106,6 +388,16 @@ diagReceiveReport(const uint8_t *reportData)
 		else
 			scanDisable();
 		break;
+	case dcWriteMacroSegment:
+		diagWriteMacroSegment(reportData[1],
+				      reportData[2],
+				      reportData[3],
+				      reportData[4],
+				      reportData[5]);
+		break;
+	case dcLoadMacros:
+		if (reportData[1])
+			macrosInit();
 	default:
 		break;
 	}
@@ -187,249 +479,16 @@ diagFillReport(uint8_t *reportData, bool usingNKROReport)
 	case drEEPROM:
 		diagReportEEPROM(reportData);
 		break;
-        case drDebug:
-                diagReportDebug(reportData);
+	case drDebug:
+		diagReportDebug(reportData);
+		break;
+	case drMacroEEPROMSize:
+		diagReportMacroEEPROMSize(reportData);
+		break;
+	case drMacros:
+		diagReportMacros(reportData);
 		break;
 	default:
 		break;
 	}
-}
-
-/*
- *
- */
-void
-diagReportInfo(uint8_t *reportData, bool usingNKROReport)
-{
-	reportData[1] = 4; // number of layers
-	reportData[2] = LAYERS_NUM_CONDITIONS;
-	reportData[3] = KBD_COLS;
-	reportData[4] = KBD_ROWS;
-
-#if defined(BEAMSPRING)
-	reportData[5] = dktBeamspring;
-#elif defined(BEAMSPRING_DISPLAYWRITER)
-	reportData[5] = dktBeamspringDisplaywriter;
-#elif defined(MODEL_F)
-	reportData[5] = dktModelF;
-#else
-#	error "keyboard type not known!"
-#endif
-	reportData[6] = usingNKROReport;
-}
-
-/*
- *
- */
-void
-diagReportKbd(uint8_t *reportData, uint8_t startCol, uint8_t endCol)
-{
-	/* data is sent column-major, one column per byte (even on 4-row kbd) */
-	uint8_t currByte = 1;
-
-	for (uint8_t col = startCol; col <= endCol; col++, currByte++)
-		for (uint8_t row = 0; row < KBD_ROWS; row++)
-			if (scanState[col][row] >= SCAN_DB_THRESH)
-				reportData[currByte] |= (1 << row);
-}
-
-/*
- *
- */
-void
-diagReportVref(uint8_t *reportData)
-{
-	uint16_t vref = vrefGet();
-	reportData[1] = vref & 0xff;
-	reportData[2] = vref >> 8;
-}
-
-/*
- *
- */
-void
-diagReportScanCodes(uint8_t *reportData)
-{
-	static uint8_t currLayer = 0;
-	static uint8_t currSlice = 0;
-	static uint8_t currCol = 0;
-
-	uint8_t oldSelectedLayer = layersSelectedLayer;
-	if (currLayer != layersSelectedLayer)
-		layersLoad(currLayer);
-
-	/* first byte of report has layer in top two bits, the current row slice
-	 * in the next bit (we do four rows at a time), and column in the
-	 * bottom 5.
-	 */
-	reportData[1] = (currLayer << 6) | (currSlice << 5) | currCol;
-
-	if (KBD_ROWS == 4 || currSlice == 0)
-		for (uint8_t i = 0; i < 4; i++)
-			reportData[i + 2] = layersMatrix[currCol][i];
-	else if (KBD_ROWS == 8 && currSlice == 1)
-		for (uint8_t i = 4; i < 8; i++)
-			reportData[i - 2] = layersMatrix[currCol][i];
-
-	currCol++;
-	if (currCol == KBD_COLS) {
-		currCol = 0;
-
-#if KBD_ROWS == 8
-		currSlice++;
-		if (currSlice == 1)
-			return;
-		else
-			currSlice = 0;
-#endif
-
-		currLayer++;
-		if (currLayer == 4)
-			currLayer = 0;
-	}
-
-	if (currLayer != oldSelectedLayer)
-		layersLoad(oldSelectedLayer);
-}
-
-/*
- *
- */
-void
-diagReportLayerConditions(uint8_t *reportData)
-{
-	static uint8_t currSet = 0; // sent in two halves
-
-	reportData[1] = currSet;
-
-	memcpy(&reportData[2],
-	       &layersConditions[currSet * (LAYERS_NUM_CONDITIONS / 2)],
-	       LAYERS_NUM_CONDITIONS / 2);
-
-	currSet++;
-	if (currSet == 2)
-		currSet = 0;
-}
-
-/*
- *
- */
-void
-diagReportVersion(uint8_t *reportData)
-{
-	char *c = VERSION;
-	uint8_t i = 1;
-
-	while ((reportData[i++] = *c++) != '\0' && i < 7)
-		;
-	reportData[i] = '\0';
-}
-
-/*
- *
- */
-void
-diagReportExpMode(uint8_t *reportData)
-{
-	reportData[1] = expMode;
-	reportData[2] = expVal1;
-	reportData[3] = expVal2;
-}
-
-/*
- *
- */
-void
-diagReportKbdColSkips(uint8_t *reportData)
-{
-	memcpy(&reportData[1], kbdColSkips, sizeof(kbdColSkips));
-}
-
-/*
- *
- */
-void
-diagReportEEPROM(uint8_t *reportData)
-{
-	static uint8_t fourByteSegment = 0;
-
-	uint16_t addr = fourByteSegment * 4;
-
-	reportData[1] = fourByteSegment;
-	eeprom_read_block(&reportData[2], addr, 4);
-
-	if (++fourByteSegment >= 1024)
-		fourByteSegment = 0;
-}
-
-/*
- *
- */
-void
-diagReportDebug(uint8_t *reportData)
-{
-    //static uint8_t index = 0;
-
-    //reportData[1] = index;
-    //reportData[2] = kbdPrevSCBmp[index];
-
-    //index++;
-    //if (index >= sizeof(kbdPrevSCBmp))
-    //    index = 0;
-
-	reportData[1] = 0;
-	reportData[2] = scanTick;
-}
-
-/*
- *
- */
-void
-diagSetScanCode(uint8_t layer, uint8_t col, uint8_t row, uint8_t sc)
-{
-	if (layer >= 0 && layer < 4 &&
-	    col >= 0 && col < KBD_COLS &&
-	    row >= 0 && row < KBD_ROWS)
-		layersSetScancode(layer, col, row, sc);
-}
-
-/*
- *
- */
-void
-diagSetLayerCondition(uint8_t conditionIdx, uint8_t val)
-{
-	if (conditionIdx >= 0 && conditionIdx < LAYERS_NUM_CONDITIONS)
-		layersSetCondition(conditionIdx, val);
-}
-
-/*
- *
- */
-void
-diagSetExpMode(uint8_t mode, uint8_t val1, uint8_t val2)
-{
-	expMode = mode;
-	expVal1 = val1;
-	expVal2 = val2;
-
-	expReset();
-}
-
-/*
- *
- */
-void
-diagSetKbdColSkips(const uint8_t *reportData)
-{
-	memcpy(kbdColSkips, &reportData[1], sizeof(kbdColSkips));
-}
-
-/*
- *
- */
-void
-diagWriteEEPROMByte(uint8_t *addr, uint8_t val)
-{
-	eeprom_update_byte(addr, val);
 }

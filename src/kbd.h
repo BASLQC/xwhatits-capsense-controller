@@ -47,4 +47,7 @@ bool kbdWantsWakeup(void);
 void kbdStoreColSkips(void);
 void kbdLoadColSkips(void);
 
+#define kbdSCIsIn(sc, bmp) (bmp[sc / 8] & (1 << (sc % 8)))
+#define kbdSCMods(bmp)     (bmp[HID_KEYBOARD_SC_LEFT_CONTROL / 8])
+
 #endif

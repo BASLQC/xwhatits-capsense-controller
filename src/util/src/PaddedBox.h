@@ -14,36 +14,19 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.  
  ******************************************************************************/
-#ifndef LAYERCONDITIONWATCHER_H
-#define LAYERCONDITIONWATCHER_H
+#ifndef PADDEDBOX_H
+#define PADDEDBOX_H
 
-#include <QCheckBox>
-#include <QComboBox>
-#include "DiagInterface.h"
+#include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <QWidget>
 
-class LayerConditionWatcher: public QObject
+class PaddedBox: public QWidget
 {
     Q_OBJECT
 
     public:
-        LayerConditionWatcher(DiagInterface &diag, int conditionIndex,
-                QCheckBox *fn1Check, QCheckBox *fn2Check, QCheckBox *fn3Check,
-                QComboBox *layerCombo, QObject *parent = NULL);
-        LayerCondition toLayerCondition(void);
-
-    private:
-        DiagInterface &diag;
-        int conditionIndex;
-        QCheckBox *fn1Check;
-        QCheckBox *fn2Check;
-        QCheckBox *fn3Check;
-        QComboBox *layerCombo;
-
-        void changed(void);
-
-    private slots:
-        void changed(bool);
-        void changed(int);
+        PaddedBox(QWidget *child, QWidget *parent = NULL);
 };
 
 #endif

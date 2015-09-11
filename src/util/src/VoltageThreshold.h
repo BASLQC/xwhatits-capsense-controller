@@ -14,34 +14,44 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.  
  ******************************************************************************/
-#ifndef KEYMON_H
-#define KEYMON_H
-
-#define KEYMON_CELL_SIZE 7
+#ifndef VOLTAGETHRESHOLD_H
+#define VOLTAGETHRESHOLD_H
 
 #include <QDebug>
-#include <QMouseEvent>
-#include <QPainter>
+#include <QGridLayout>
+#include <QLabel>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QTimer>
 #include <QWidget>
-#include <vector>
+#include "DiagInterface.h"
+#include "NonFocused.h"
 
-class KeyMon: public QWidget
+class VoltageThreshold: public QWidget
 {
     Q_OBJECT
 
     public:
-        KeyMon(QWidget *parent = 0);
-        virtual QSize sizeHint(void) const;
-        void updateStates(const std::vector<std::vector<bool>> &val);
-
-    protected:
-        virtual void leaveEvent(QEvent *event);
-        virtual void mouseMoveEvent(QMouseEvent *event);
-        virtual void paintEvent(QPaintEvent *event);
+        VoltageThreshold(DiagInterface &diag, const bool &kbdFocusEnabled,
+                QWidget *parent = NULL);
 
     private:
-        std::vector<std::vector<bool>> states;
-        QString cellText;
+        DiagInterface &diag;
+        QTimer maskTimer;
+        NonFocusedSpinBox *thresholdSpinBox;
+        QPushButton *autoCalButton;
+        QPushButton *storeButton;
+        unsigned short cachedThreshold;
+
+    private slots:
+        void updateThreshold(void);
+        void thresholdValueChanged(int);
+        void maskTimerExpired(void);
+        void autoCalButtonClicked(void);
+        void autoCalComplete(void);
+        void autoCalEnableComplete(void);
+        void storeButtonClicked(void);
+        void storeComplete(void);
 };
 
 #endif

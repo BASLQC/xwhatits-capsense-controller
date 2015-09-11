@@ -48,7 +48,7 @@
 #define EEP_KBD_COL_SKIPS	(EEP_EXP_VAL2 + 1)
 #define EEP_KBD_COL_SKIPS_BND	(EEP_KBD_COL_SKIPS + 3)
 
-#define EEP_MACROS		639
+#define EEP_MACROS		600
 #define EEP_MACROS_BND		1024
 
 /* hopefully some spare space inbetween... */

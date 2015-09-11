@@ -125,14 +125,21 @@ layersSetCondition(uint8_t idx, uint8_t val)
 void
 layersProcessScan(void)
 {
-	/* first look for select keycodes to change default layer */
-	if (kbdSCBmp[KBD_SC_SELECT_0 / 8] & (1 << (KBD_SC_SELECT_0 % 8)))
+	/* first look for select keycodes to change default layer; use key-up
+	 * to trigger switch, making it possible to use the same key to toggle
+	 * between layers.
+	 */
+	if ( kbdSCIsIn(KBD_SC_SELECT_0, kbdPrevSCBmp) &&
+	    !kbdSCIsIn(KBD_SC_SELECT_0, kbdSCBmp))
 		layersDefaultLayer = 0;
-	else if (kbdSCBmp[KBD_SC_SELECT_1 / 8] & (1 << (KBD_SC_SELECT_1 % 8)))
+	else if ( kbdSCIsIn(KBD_SC_SELECT_1, kbdPrevSCBmp) &&
+		 !kbdSCIsIn(KBD_SC_SELECT_1, kbdSCBmp))
 		layersDefaultLayer = 1;
-	else if (kbdSCBmp[KBD_SC_SELECT_2 / 8] & (1 << (KBD_SC_SELECT_2 % 8)))
+	else if ( kbdSCIsIn(KBD_SC_SELECT_2, kbdPrevSCBmp) &&
+		 !kbdSCIsIn(KBD_SC_SELECT_2, kbdSCBmp))
 		layersDefaultLayer = 2;
-	else if (kbdSCBmp[KBD_SC_SELECT_3 / 8] & (1 << (KBD_SC_SELECT_3 % 8)))
+	else if ( kbdSCIsIn(KBD_SC_SELECT_3, kbdPrevSCBmp) &&
+		 !kbdSCIsIn(KBD_SC_SELECT_3, kbdSCBmp))
 		layersDefaultLayer = 3;
 
 	uint8_t result = layersDefaultLayer;

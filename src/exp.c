@@ -129,12 +129,12 @@ expMSTick(void)
 /*
  *
  */
-void
-expSetMode(uint8_t mode, uint8_t val1, uint8_t val2)
+static void
+loadMode(void)
 {
-	expMode = mode;
-	expVal1 = val1;
-	expVal2 = val2;
+	expMode = eeprom_read_byte((uint8_t *)EEP_EXP_MODE);
+	if (expMode >= expModeEND)
+		expMode = expModeDisabled;
 }
 
 /*
@@ -247,12 +247,33 @@ switchIsSet(void)
 }
 
 /*
+ * when key-down change-of-state on Exp Toggle key, either load exp mode
+ * from EEPROM if currently disabled, or set it to disabled
+ */
+static void
+handleToggleKey(void)
+{
+	if ( kbdSCIsIn(KBD_SC_EXP_TOGGLE, kbdSCBmp) &&
+	    !kbdSCIsIn(KBD_SC_EXP_TOGGLE, kbdPrevSCBmp)) {
+		if (expMode == expModeDisabled) {
+			loadMode();
+			expReset();
+		} else {
+			expMode = expModeDisabled;
+			expClear();
+		}
+	}
+}
+
+/*
  * returns true if it caused a change in the scan
  */
 bool
 expProcessScan(bool scanChanged)
 {
 	if (scanChanged) {
+		handleToggleKey();
+
 		switch (expMode) {
 		case expModeSolenoid:
 		case expModeSolenoidPlusNOCapsLockSwitch:
@@ -339,11 +360,7 @@ expStore(void)
 void
 expLoad(void)
 {
-	uint8_t mode = eeprom_read_byte((uint8_t *)EEP_EXP_MODE);
-	if (mode >= expModeEND)
-		mode = expModeDisabled;
-
-	expSetMode(mode,
-		   eeprom_read_byte((uint8_t *)EEP_EXP_VAL1),
-		   eeprom_read_byte((uint8_t *)EEP_EXP_VAL2));
+	loadMode();
+	expVal1 = eeprom_read_byte((uint8_t *)EEP_EXP_VAL1);
+	expVal2 = eeprom_read_byte((uint8_t *)EEP_EXP_VAL2);
 }

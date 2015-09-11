@@ -18,17 +18,16 @@
 #define MACRO_TYPES
 
 typedef enum {
+	mcNOP,
 	mcPress,
-	mcMake,
-	mcBreak,
-	mcAssignMeta,
-	mcSetMeta,
-	mcClearMeta,
-	mcToggleMeta,
-	mcPopMeta,
-	mcPopAllMeta,
+	mcAssignMods,
+	mcSetMods,
+	mcClearMods,
+	mcToggleMods,
+	mcPopMods,
+	mcPopAllMods,
 	mcDelay,
-	mcPushMeta = 0x80,
+	mcPushMods = 0x80,
 	mcEND = 0xff
 } MacroCommands;
 

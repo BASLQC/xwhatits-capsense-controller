@@ -83,15 +83,24 @@
 #	error "BOARD_TYPE not specified in makefile"
 #endif
 
-#if defined(BEAMSPRING) || defined(BEAMSPRING_DISPLAYWRITER)
-#	define KBD_ACTIVE_LOW
-#elif defined(MODEL_F)
+#if defined(KEY_POLARITY_AUTO)
+#	if defined(BEAMSPRING) || defined(BEAMSPRING_DISPLAYWRITER)
+#		define KBD_ACTIVE_LOW
+#	elif defined(MODEL_F)
+#		define KBD_ACTIVE_HIGH
+#	endif
+#elif defined(KEY_POLARITY_ACTIVE_HIGH)
 #	define KBD_ACTIVE_HIGH
+#elif defined(KEY_POLARITY_ACTIVE_LOW)
+#	define KBD_ACTIVE_LOW
+#else
+#	error "KEY_POLARITY not specified in makefile"
 #endif
 
 #define KBD_SC_IGNORED       0x00
 #define KBD_SC_CAL_HI        0x01
 #define KBD_SC_CAL_LO        0x02
+#define KBD_SC_EXP_TOGGLE    0x03
 #define KBD_SC_SYSTEM_POWER  0xA5
 #define KBD_SC_MEDIA_PLAY    0xA8
 #define KBD_SC_WEB_BOOKMARKS 0xBD

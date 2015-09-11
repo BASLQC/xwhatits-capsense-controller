@@ -22,38 +22,14 @@ using namespace std;
  *
  */
 Frontend::Frontend(DiagInterface &diag, QWidget *parent):
-    QWidget(parent),
+    QMainWindow(parent),
     diag(diag),
     kbdFocusEnabled(false)
 {
     setWindowTitle("IBM Capsense USB Util");
 
-    /*
-     * info section
-     */
-    QGroupBox *infoGroup = new QGroupBox("Info");
-
-    kbdVersionLabel = new QLabel;
-    kbdTypeLabel = new QLabel;
-    kbdMatrixSizeLabel = new QLabel;
-    kbdLayerCountLabel = new QLabel;
-    kbdNKROLabel = new QLabel;
-
-    QGridLayout *infoGrid = new QGridLayout;
-    infoGrid->addWidget(new QLabel("Util version:"), 0, 0);
-    infoGrid->addWidget(new QLabel(QString(VER)), 0, 1);
-    infoGrid->addWidget(new QLabel("Firmware version:"), 1, 0);
-    infoGrid->addWidget(kbdVersionLabel, 1, 1);
-    infoGrid->addWidget(new QLabel("Keyboard type:"), 2, 0);
-    infoGrid->addWidget(kbdTypeLabel, 2, 1);
-    infoGrid->addWidget(new QLabel("Matrix size:"), 3, 0);
-    infoGrid->addWidget(kbdMatrixSizeLabel, 3, 1);
-    infoGrid->addWidget(new QLabel("Layer count:"), 4, 0);
-    infoGrid->addWidget(kbdLayerCountLabel, 4, 1);
-    infoGrid->addWidget(new QLabel("NKRO mode:"), 5, 0);
-    infoGrid->addWidget(kbdNKROLabel, 5, 1);
-
-    infoGroup->setLayout(infoGrid);
+    buildMenuBar();
+    setStatusBar(new StatusBar(diag));
 
     /*
      * state section
@@ -71,65 +47,6 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
     stateGroup->setLayout(stateVBox);
 
     /*
-     * vref stuff
-     */
-    vrefMaskTimer = new QTimer(this);
-    vrefMaskTimer->setSingleShot(true);
-
-    QGroupBox *vrefGroup = new QGroupBox("Voltage threshold");
-
-    QToolButton *vrefHelpButton = new QToolButton;
-    vrefHelpButton->setText("?");
-    vrefHelpButton->setToolTip("Help");
-
-    QLabel *vrefSpinBoxLabel = new QLabel("Current threshold:");
-    vrefSpinBox = new NonFocusedSpinBox(kbdFocusEnabled);
-    vrefSpinBox->setMaximum(65535);
-    autoCalButton = new QPushButton;
-    storeVrefButton = new QPushButton("Store override in EEPROM");
-
-    QGridLayout *vrefGrid = new QGridLayout;
-    vrefGrid->addWidget(vrefSpinBoxLabel, 0, 0);
-    vrefGrid->addWidget(vrefSpinBox, 0, 1);
-    vrefGrid->addWidget(vrefHelpButton, 0, 2);
-    vrefGrid->addWidget(autoCalButton, 1, 0, 1, 3);
-    vrefGrid->addWidget(storeVrefButton, 2, 0, 1, 3);
-
-    vrefGroup->setLayout(vrefGrid);
-
-    QWidget::setTabOrder(vrefHelpButton, vrefSpinBox);
-
-    /*
-     * expansion header section
-     */
-    QGroupBox *expGroup = new QGroupBox("Expansion header");
-
-    expModeCombo = new NonFocusedComboBox(kbdFocusEnabled);
-    populateExpModeCombo();
-
-    expVal1Label = new QLabel("Extend time (ms):");
-    expVal1SpinBox = new NonFocusedSpinBox(kbdFocusEnabled);
-    expVal1SpinBox->setMaximum(255);
-
-    expVal2Label = new QLabel("Retract time (ms):");
-    expVal2SpinBox = new NonFocusedSpinBox(kbdFocusEnabled);
-    expVal2SpinBox->setMaximum(255);
-
-    QPushButton *expStoreButton = new QPushButton("Store in EEPROM");
-
-    QVBoxLayout *expVBox = new QVBoxLayout;
-    expVBox->addStretch();
-    expVBox->addWidget(expModeCombo);
-    expVBox->addWidget(expVal1Label);
-    expVBox->addWidget(expVal1SpinBox);
-    expVBox->addWidget(expVal2Label);
-    expVBox->addWidget(expVal2SpinBox);
-    expVBox->addWidget(expStoreButton);
-    expVBox->addStretch();
-
-    expGroup->setLayout(expVBox);
-
-    /*
      * control section
      */
     QGroupBox *controlGroup = new QGroupBox("Control");
@@ -142,140 +59,63 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
     haltScanButton->setSizePolicy(QSizePolicy::Expanding,
             QSizePolicy::Expanding);
 
-    QToolButton *guiKbdLockHelpButton = new QToolButton;
-    guiKbdLockHelpButton->setText("?");
-    haltScanHelpButton->setToolTip("Help");
-    QPushButton *guiKbdLockButton = new QPushButton("GUI keyboard unlock");
-    guiKbdLockButton->setCheckable(true);
-
-    QToolButton *bootloaderHelpButton = new QToolButton;
-    bootloaderHelpButton->setText("?");
-    bootloaderHelpButton->setToolTip("Help");
-    bootloaderButton = new QPushButton("Enter bootloader");
-
     QGridLayout *controlGrid = new QGridLayout;
     controlGrid->addWidget(haltScanButton, 0, 0, 3, 1);
     controlGrid->addWidget(haltScanHelpButton, 1, 1);
-    controlGrid->addWidget(guiKbdLockButton, 3, 0);
-    controlGrid->addWidget(guiKbdLockHelpButton, 3, 1);
-    controlGrid->addWidget(bootloaderButton, 4, 0);
-    controlGrid->addWidget(bootloaderHelpButton, 4, 1);
 
     controlGroup->setLayout(controlGrid);
 
     /*
-     * matrix stuff
+     * subtabs
+     */
+    VoltageThreshold *vref = new VoltageThreshold(diag, kbdFocusEnabled);
+    expansionHeader = new ExpansionHeader(diag, kbdFocusEnabled);
+    layerConditions = new LayerConditions(diag, kbdFocusEnabled);
+    colSkips = new ColSkips(diag);
+    macros = new Macros(diag, kbdFocusEnabled);
+
+    /*
+     * matrix
      */
     QTimer *keyStatesTimer = new QTimer(this);
     keyStatesTimer->start(0);
 
-    matrixTabWidget = new QTabWidget;
+    /*
+     * config tabs
+     */
+    mainTabWidget = new QTabWidget;
 
-    QGroupBox *matrixGroup = new QGroupBox("Layout");
-    layerConditionsGrid = new QGridLayout;
-    QWidget *layerConditionsWidget = new QWidget;
-    layerConditionsWidget->setLayout(layerConditionsGrid);
-    matrixTabWidget->addTab(layerConditionsWidget, "Layer Conditions");
-
-    colSkipsGrid = new QGridLayout;
-    QWidget *colSkipsWidget = new QWidget;
-
-    QPushButton *storeColSkipsButton = new QPushButton("Store in EEPROM");
-    QToolButton *colSkipsHelpButton = new QToolButton;
-    colSkipsHelpButton->setText("?");
-    colSkipsHelpButton->setToolTip("Help");
-
-    QHBoxLayout *colSkipsPBHBox = new QHBoxLayout;
-    colSkipsPBHBox->addStretch();
-    colSkipsPBHBox->addWidget(storeColSkipsButton);
-    colSkipsPBHBox->addWidget(colSkipsHelpButton);
-
-    QVBoxLayout *colSkipsVBox = new QVBoxLayout;
-    colSkipsVBox->addStretch();
-    colSkipsVBox->addLayout(colSkipsGrid);
-    colSkipsVBox->addLayout(colSkipsPBHBox);
-    colSkipsVBox->addStretch();
-
-    colSkipsWidget->setLayout(colSkipsVBox);
-    matrixTabWidget->addTab(colSkipsWidget, "Column Skips");
-    buildColSkips();
-
-    QPushButton *importMatrixButton = new QPushButton("Import layout");
-    QPushButton *exportMatrixButton = new QPushButton("Export layout");
-
-    QHBoxLayout *layoutHBox = new QHBoxLayout;
-    layoutHBox->addWidget(importMatrixButton);
-    layoutHBox->addWidget(exportMatrixButton);
-
-    QVBoxLayout *matrixLayout = new QVBoxLayout;
-    matrixLayout->setSizeConstraint(QLayout::SetMinimumSize);
-    matrixLayout->addLayout(layoutHBox);
-    matrixLayout->addWidget(matrixTabWidget);
-
-    matrixGroup->setLayout(matrixLayout);
+    mainTabWidget->addTab(new PaddedBox(vref), "Voltage Threshold");
+    mainTabWidget->addTab(new PaddedBox(expansionHeader), "Expansion Header");
+    mainTabWidget->addTab(new PaddedBox(layerConditions), "Layer Conditions");
+    mainTabWidget->addTab(new PaddedBox(colSkips), "Column Skips");
+    mainTabWidget->addTab(macros, "Macros");
 
     /*
      * main layout
      */
     QHBoxLayout *hbox1 = new QHBoxLayout;
-    hbox1->addWidget(infoGroup);
     hbox1->addWidget(stateGroup);
-    hbox1->addWidget(vrefGroup);
-    hbox1->addWidget(expGroup);
     hbox1->addWidget(controlGroup);
     hbox1->setSizeConstraint(QLayout::SetMinimumSize);
 
     QVBoxLayout *vbox1 = new QVBoxLayout;
     vbox1->addLayout(hbox1, 1);
-    vbox1->addWidget(matrixGroup, 10);
+    vbox1->addWidget(mainTabWidget, 10);
     vbox1->setSizeConstraint(QLayout::SetMinimumSize);
 
-    setLayout(vbox1);
+    QWidget *w = new QWidget;
+    w->setLayout(vbox1);
+    setCentralWidget(w);
 
-    /* prevent vref spinbox from getting initial focus */
-    QWidget::setTabOrder(bootloaderHelpButton, vrefSpinBox);
-
-    QTimer::singleShot(0, this, SLOT(updateVref()));
-    QTimer::singleShot(0, this, SLOT(updateExpMode()));
     QTimer::singleShot(0, this, SLOT(buildMatrix()));
-    QTimer::singleShot(0, this, SLOT(buildLayerConditions()));
-    QTimer::singleShot(0, this, SLOT(updateColSkips()));
-    QTimer::singleShot(0, this, SLOT(queryKbdVersion()));
 
-    connect(vrefSpinBox, SIGNAL(valueChanged(int)),
-            SLOT(vrefValueChanged(int)));
-    connect(vrefMaskTimer, SIGNAL(timeout()), SLOT(setVrefFromBox()));
-    connect(autoCalButton, SIGNAL(clicked()), SLOT(autoCalButtonClicked()));
-    connect(storeVrefButton, SIGNAL(clicked()),
-            SLOT(storeVrefButtonClicked()));
-    connect(vrefHelpButton, SIGNAL(clicked()), SLOT(vrefHelpButtonClicked()));
-    connect(expModeCombo, SIGNAL(currentIndexChanged(int)),
-            SLOT(setExpMode(int)));
-    connect(expVal1SpinBox, SIGNAL(valueChanged(int)), SLOT(setExpMode(int)));
-    connect(expVal2SpinBox, SIGNAL(valueChanged(int)), SLOT(setExpMode(int)));
-    connect(expStoreButton, SIGNAL(clicked()),
-            SLOT(storeExpModeButtonClicked()));
-    connect(bootloaderButton, SIGNAL(clicked()),
-            SLOT(bootloaderButtonClicked()));
-    connect(bootloaderHelpButton, SIGNAL(clicked()),
-            SLOT(bootloaderHelpButtonClicked()));
-    connect(guiKbdLockButton, SIGNAL(toggled(bool)),
-            SLOT(guiKbdLockButtonToggled(bool)));
-    connect(guiKbdLockHelpButton, SIGNAL(clicked()),
-            SLOT(guiKbdLockHelpButtonClicked()));
     connect(haltScanButton, SIGNAL(toggled(bool)),
             SLOT(haltScanButtonToggled(bool)));
     connect(haltScanHelpButton, SIGNAL(clicked()),
             SLOT(haltScanHelpButtonClicked()));
-    connect(storeColSkipsButton, SIGNAL(clicked()),
-                SLOT(storeColSkipsButtonClicked()));
-    connect(colSkipsHelpButton, SIGNAL(clicked()),
-            SLOT(colSkipsHelpButtonClicked()));
+    connect(colSkips, SIGNAL(skipsChanged()), SLOT(setKeyColsEnabled()));
     connect(keyStatesTimer, SIGNAL(timeout()), SLOT(updateKeyStates()));
-    connect(importMatrixButton, SIGNAL(clicked()),
-            SLOT(importMatrixButtonClicked()));
-    connect(exportMatrixButton, SIGNAL(clicked()),
-            SLOT(exportMatrixButtonClicked()));
 }
 
 /*
@@ -288,290 +128,32 @@ Frontend::~Frontend(void)
 /*
  *
  */
-void Frontend::populateExpModeCombo(void)
+void Frontend::buildMenuBar(void)
 {
-    for (int i = 0; i < expModeEND; i++)
-    {
-        switch (i)
-        {
-            case expModeDisabled:
-                expModeCombo->addItem("Disabled");
-                break;
-            case expModeSolenoid:
-                expModeCombo->addItem("Solenoid/Buzzer");
-                break;
-            case expModeLockLEDs:
-                expModeCombo->addItem("Lock LEDs");
-                break;
-            case expModeSolenoidPlusNOCapsLockSwitch:
-                expModeCombo->addItem("Solenoid/Buzzer + Caps Lock Switch "
-                        "(NO)");
-                break;
-            case expModeSolenoidPlusNCCapsLockSwitch:
-                expModeCombo->addItem("Solenoid/Buzzer + Caps Lock Switch "
-                        "(NC)", i);
-                break;
-            case expModeSolenoidPlusNONumLockSwitch:
-                expModeCombo->addItem("Solenoid/Buzzer + Num Lock switch (NO)");
-                break;
-            case expModeSolenoidPlusNCNumLockSwitch:
-                expModeCombo->addItem("Solenoid/Buzzer + Num Lock switch (NC)");
-                break;
-            case expModeSolenoidPlusNOShiftLockSwitch:
-                expModeCombo->addItem("Solenoid/Buzzer + Shift Lock Switch "
-                        "(NO)");
-                break;
-            case expModeSolenoidPlusNCShiftLockSwitch:
-                expModeCombo->addItem("Solenoid/Buzzer + Shift Lock Switch "
-                        "(NC)");
-                break;
-            case expModeSolenoidPlusNOFn1LockSwitch:
-                expModeCombo->addItem("Solenoid/Buzzer + Fn1 Lock Switch (NO)");
-                break;
-            case expModeSolenoidPlusNCFn1LockSwitch:
-                expModeCombo->addItem("Solenoid/Buzzer + Fn1 Lock Switch (NC)");
-                break;
-            case expModeSolenoidPlusNOFn2LockSwitch:
-                expModeCombo->addItem("Solenoid/Buzzer + Fn2 Lock Switch (NO)");
-                break;
-            case expModeSolenoidPlusNCFn2LockSwitch:
-                expModeCombo->addItem("Solenoid/Buzzer + Fn2 Lock Switch (NC)");
-                break;
-            case expModeSolenoidPlusNOFn3LockSwitch:
-                expModeCombo->addItem("Solenoid/Buzzer + Fn3 Lock Switch (NO)");
-                break;
-            case expModeSolenoidPlusNCFn3LockSwitch:
-                expModeCombo->addItem("Solenoid/Buzzer + Fn3 Lock Switch (NC)");
-                break;
-        }
+    QMenuBar *menuBar = new QMenuBar;
 
-        expModeCombo->setItemData(i, i);
-    }
+    QMenu *fileMenu = menuBar->addMenu("&File");
+    fileMenu->addAction("&Import", this, SLOT(importConfig()));
+    fileMenu->addAction("&Export", this, SLOT(exportConfig()));
+    fileMenu->addSeparator();
+    fileMenu->addAction("&Quit", this, SLOT(close()))->
+        setMenuRole(QAction::QuitRole);
+
+    QMenu *toolsMenu = menuBar->addMenu("&Tools");
+    toolsMenu->addAction("Enter &bootloader", this, SLOT(enterBootloader()));
+
+    QAction *guiKbdLockAction = toolsMenu->addAction("&GUI keyboard unlock");
+    guiKbdLockAction->setCheckable(true);
+    connect(guiKbdLockAction, SIGNAL(toggled(bool)),
+            SLOT(guiKbdLockToggled(bool)));
+
+    setMenuBar(menuBar);
 }
 
 /*
  *
  */
-void Frontend::updateVref(void)
-{
-    disconnect(vrefSpinBox, SIGNAL(valueChanged(int)), this,
-            SLOT(vrefValueChanged(int)));
-
-    vrefSpinBox->setValue(diag.vref());
-
-    connect(vrefSpinBox, SIGNAL(valueChanged(int)), this,
-            SLOT(vrefValueChanged(int)));
-
-    /* re-enable widgets and set autocal button's text---should probably use
-     * state machine or something as this is not needed every time
-     */
-    setEnabled(true);
-    autoCalButton->setText("Auto-calibrate");
-}
-
-/*
- *
- */
-void Frontend::vrefValueChanged(int)
-{
-    /* mask for a bit before actually setting value in case just mashing one
-     * of the arrows, or typing etc.
-     */
-    vrefMaskTimer->start(500);
-    autoCalButton->setEnabled(false);
-    storeVrefButton->setEnabled(false);
-}
-
-/*
- *
- */
-void Frontend::setVrefFromBox(void)
-{
-    qDebug() << "setting vref";
-    diag.setVref(vrefSpinBox->value());
-    autoCalButton->setEnabled(true);
-    storeVrefButton->setEnabled(true);
-}
-
-/*
- *
- */
-void Frontend::adjustExpVals(ExpMode mode)
-{
-    switch (mode)
-    {
-        case expModeSolenoidPlusNOCapsLockSwitch:
-        case expModeSolenoidPlusNCCapsLockSwitch:
-        case expModeSolenoidPlusNOShiftLockSwitch:
-        case expModeSolenoidPlusNCShiftLockSwitch:
-        case expModeSolenoid:
-            expVal1Label->setText("Extend time (ms):");
-            expVal2Label->setText("Retract time (ms):");
-            expVal1SpinBox->setEnabled(true);
-            expVal2SpinBox->setEnabled(true);
-            break;
-        default:
-            expVal1Label->setText("");
-            expVal2Label->setText("");
-            expVal1SpinBox->setEnabled(false);
-            expVal2SpinBox->setEnabled(false);
-            break;
-    }
-}
-
-/*
- *
- */
-void Frontend::updateExpMode(void)
-{
-    int mode, val1, val2;
-
-    diag.expMode(mode, val1, val2);
-
-    disconnect(expModeCombo, SIGNAL(currentIndexChanged(int)), this,
-            SLOT(setExpMode(int)));
-    disconnect(expVal1SpinBox, SIGNAL(valueChanged(int)), this,
-            SLOT(setExpMode(int)));
-    disconnect(expVal2SpinBox, SIGNAL(valueChanged(int)), this,
-            SLOT(setExpMode(int)));
-
-    expModeCombo->setCurrentIndex(expModeCombo->findData(mode));
-    expVal1SpinBox->setValue(val1);
-    expVal2SpinBox->setValue(val2);
-
-    adjustExpVals((ExpMode)mode);
-
-    connect(expModeCombo, SIGNAL(currentIndexChanged(int)),
-            SLOT(setExpMode(int)));
-    connect(expVal1SpinBox, SIGNAL(valueChanged(int)), SLOT(setExpMode(int)));
-    connect(expVal2SpinBox, SIGNAL(valueChanged(int)), SLOT(setExpMode(int)));
-}
-
-/*
- *
- */
-void Frontend::setExpMode(int)
-{
-    int mode = expModeCombo->itemData(expModeCombo->currentIndex()).toInt();
-    int val1 = expVal1SpinBox->value();
-    int val2 = expVal2SpinBox->value();
-
-    adjustExpVals((ExpMode)mode);
-
-    qDebug() << "setting exp mode";
-
-    diag.setExpMode(mode, val1, val2);
-}
-
-/*
- *
- */
-void Frontend::storeExpModeButtonClicked(void)
-{
-    setEnabled(false);
-
-    diag.storeExpMode();
-
-    QTimer::singleShot(2000, this, SLOT(storeExpModeComplete()));
-}
-
-/*
- *
- */
-void Frontend::storeExpModeComplete(void)
-{
-    updateExpMode();
-    setEnabled(true);
-}
-
-/*
- *
- */
-void Frontend::autoCalButtonClicked(void)
-{
-    setEnabled(false);
-    autoCalButton->setText("Auto-calibrating...");
-
-    diag.autoCalibrate();
-
-    /* keyboard will disappear for a bit while it does its thing */
-    QTimer::singleShot(2000, this, SLOT(autoCalComplete()));
-}
-
-/*
- *
- */
-void Frontend::autoCalComplete(void)
-{
-    cachedVref = diag.vref();
-
-    QMessageBox::StandardButton result = QMessageBox::question(this,
-            "Auto-calibration complete",
-            "Auto-calibration finished, threshold is " +
-            QString::number(cachedVref) + ". "
-            "Would you like auto-calibration to "
-            "take place automatically every time the keyboard is powered up?",
-            QMessageBox::Yes | QMessageBox::No);
-
-    if (result == QMessageBox::Yes)
-    {
-        diag.setVref(65535);
-        diag.storeVref();
-        QTimer::singleShot(1000, this, SLOT(autoCalEnableComplete()));
-    }
-    else
-        updateVref();
-}
-
-/*
- *
- */
-void Frontend::autoCalEnableComplete(void)
-{
-    diag.setVref(cachedVref);
-    setEnabled(true);
-    updateVref();
-}
-
-/*
- *
- */
-void Frontend::storeVrefButtonClicked(void)
-{
-    setEnabled(false);
-    diag.storeVref();
-    QTimer::singleShot(2000, this, SLOT(storeVrefComplete()));
-}
-
-/*
- *
- */
-void Frontend::storeVrefComplete(void)
-{
-    setEnabled(true);
-}
-
-/*
- *
- */
-void Frontend::vrefHelpButtonClicked(void)
-{
-    QMessageBox::information(this, "Voltage threshold help",
-            "<p>The voltage threshold is the threshold that a key is "
-            "considered pressed or not.</p>"
-            "<p>If a valid set of scancodes is loaded (some keys "
-            "must be set to PRESSED or RELEASED) then in most cases the "
-            "threshold can be auto-calibrated when the keyboard "
-            "is plugged in (this happens if 65535 is stored in the "
-            "controller's EEPROM).</p>"
-            "<p>Alternatively, a forced override value can "
-            "be stored in the controller's EEPROM.</p>");
-}
-
-/*
- *
- */
-void Frontend::bootloaderButtonClicked(void)
+void Frontend::enterBootloader(void)
 {
     QMessageBox::StandardButton result = QMessageBox::question(this,
             "Enter bootloader",
@@ -583,8 +165,6 @@ void Frontend::bootloaderButtonClicked(void)
     {
         setEnabled(false);
         diag.enterBootloader();
-        QMessageBox::information(this, "Rebooted into bootloader",
-                "The keyboard is ready to be flashed. Will now exit.");
         QTimer::singleShot(0, this, SLOT(close()));
     }
 }
@@ -592,31 +172,9 @@ void Frontend::bootloaderButtonClicked(void)
 /*
  *
  */
-void Frontend::bootloaderHelpButtonClicked(void)
-{
-    QMessageBox::information(this, "Bootloader help",
-            "Enter the bootloader to allow Atmel Flip or dfu-programmer "
-            "to flash new firmware.");
-}
-
-/*
- *
- */
-void Frontend::guiKbdLockButtonToggled(bool checked)
+void Frontend::guiKbdLockToggled(bool checked)
 {
     kbdFocusEnabled = checked;
-}
-
-/*
- *
- */
-void Frontend::guiKbdLockHelpButtonClicked(void)
-{
-    QMessageBox::information(this, "GUI keyboard lock help",
-            "When this is depressed, keypresses will be allowed to interact "
-            "with the utility's user interface. Leaving it unpressed prevents "
-            "rogue keypresses from an incorrect voltage threshold from "
-            "overwriting settings.");
 }
 
 /*
@@ -662,8 +220,8 @@ void Frontend::buildMatrix(void)
                 delete keyWidgets[i][j][k];
 
         /* hack, rely on layers being last tabs to be added */
-        QWidget *w = matrixTabWidget->widget(matrixTabWidget->count() - 1);
-        matrixTabWidget->removeTab(matrixTabWidget->count() - 1);
+        QWidget *w = mainTabWidget->widget(mainTabWidget->count() - 1);
+        mainTabWidget->removeTab(mainTabWidget->count() - 1);
         delete w;
     }
     keyWidgets.clear();
@@ -676,16 +234,13 @@ void Frontend::buildMatrix(void)
         throw runtime_error("error: keyboard reports matrix with no columns");
     int rows = scancodes[0][0].size();
 
-    kbdMatrixSizeLabel->setText(QString::number(cols) + " x " +
-            QString::number(rows));
-    kbdLayerCountLabel->setText(QString::number(layers));
-
     keyWidgets = vector<vector<vector<Key *>>>(layers,
             vector<vector<Key *>>(cols, vector<Key *>(rows)));
 
     for (int layer = 0; layer < layers; layer++)
     {
         QGridLayout *layerGrid = new QGridLayout;
+        layerGrid->setRowStretch(0, 1);
         layerGrid->setSpacing(0);
 
         for (int col = 0; col < cols; col++)
@@ -693,16 +248,17 @@ void Frontend::buildMatrix(void)
             QLabel *colLabel = new QLabel("<b>" + QString::number(col + 1) +
                     "</b>");
             colLabel->setAlignment(Qt::AlignCenter);
-            layerGrid->addWidget(colLabel, 0, col);
+            layerGrid->addWidget(colLabel, 1, col);
 
             for (int row = 0; row < rows; row++)
             {
                 Key *key = new Key(diag, kbdFocusEnabled, layer, col, row,
                         scancodes[layer][col][row]);
                 keyWidgets[layer][col][row] = key;
-                layerGrid->addWidget(key, row + 1, col);
+                layerGrid->addWidget(key, row + 2, col);
             }
         }
+        layerGrid->setRowStretch(layerGrid->rowCount(), 1);
 
         QWidget *layerWidget = new QWidget;
         layerWidget->setLayout(layerGrid);
@@ -711,7 +267,7 @@ void Frontend::buildMatrix(void)
         scrollArea->setWidget(layerWidget);
         scrollArea->setWidgetResizable(true);
 
-        matrixTabWidget->addTab(scrollArea, layer == 0 ?
+        mainTabWidget->addTab(scrollArea, layer == 0 ?
                 "Base Layer" : "Layer " + QString::number(layer));
     }
 
@@ -721,196 +277,13 @@ void Frontend::buildMatrix(void)
 /*
  *
  */
-void Frontend::buildLayerConditions(void)
-{
-    vector<LayerCondition> cnds = diag.layerConditions();
-
-    /* clear existing widgets */
-    QLayoutItem *item;
-    while ((item = layerConditionsGrid->takeAt(0)) != NULL)
-    {
-        delete item->widget();
-        delete item;
-    }
-
-    for (size_t i = 0; i < layerConditionWatchers.size(); i++)
-        delete layerConditionWatchers[i];
-    layerConditionWatchers.clear();
-
-    int count = cnds.size();
-    if (count == 0)
-        throw runtime_error("error: keyboard reports zero layer conditions");
-
-    for (int i = 0; i < 3; i++)
-    {
-        QLabel *fnLabel = new QLabel("<b>Fn" + QString::number(i + 1) + "</b>");
-        layerConditionsGrid->addWidget(fnLabel, 0, i + 2);
-    }
-    for (int i = 0; i < count; i++)
-    {
-        QLabel *rowLabel = new QLabel("<b>" + QString::number(i + 1) + "</b>");
-        layerConditionsGrid->addWidget(rowLabel, i + 1, 1);
-
-        QCheckBox *fn1Check = new QCheckBox;
-        fn1Check->setChecked(cnds[i].fn1Set());
-
-        QCheckBox *fn2Check = new QCheckBox;
-        fn2Check->setChecked(cnds[i].fn2Set());
-
-        QCheckBox *fn3Check = new QCheckBox;
-        fn3Check->setChecked(cnds[i].fn3Set());
-
-        QLabel *arrowLabel = new QLabel(QChar(0x2192));
-
-        NonFocusedComboBox *layerCombo =
-            new NonFocusedComboBox(kbdFocusEnabled);
-        for (int i = 0; i < 4; i++)
-            layerCombo->addItem(i == 0 ? "Base Layer" : "Layer " +
-                    QString::number(i), i);
-        layerCombo->setCurrentIndex(cnds[i].layer());
-
-        layerConditionsGrid->addWidget(fn1Check, i + 1, 2);
-        layerConditionsGrid->addWidget(fn2Check, i + 1, 3);
-        layerConditionsGrid->addWidget(fn3Check, i + 1, 4);
-        layerConditionsGrid->addWidget(arrowLabel, i + 1, 5);
-        layerConditionsGrid->addWidget(layerCombo, i + 1, 6);
-
-        layerConditionWatchers.push_back(new LayerConditionWatcher(diag,
-                    i, fn1Check, fn2Check, fn3Check, layerCombo, this));
-    }
-
-    layerConditionsGrid->setRowStretch(layerConditionsGrid->rowCount(), 1);
-    layerConditionsGrid->setColumnStretch(0, 4);
-    for (int i = 1; i < layerConditionsGrid->columnCount(); i++)
-        layerConditionsGrid->setColumnStretch(i, 1);
-    layerConditionsGrid->setColumnStretch(layerConditionsGrid->columnCount(),
-            4);
-}
-
-/*
- *
- */
-void Frontend::buildColSkips(void)
-{
-    for (int i = 0; i < diag.cols(); i++)
-    {
-        QLabel *l = new QLabel(QString::number(i + 1));
-        colSkipsGrid->addWidget(l, 0, i, Qt::AlignCenter);
-
-        QCheckBox *cb = new QCheckBox;
-        colSkipsCBs.push_back(cb);
-        colSkipsGrid->addWidget(cb, 1, i, Qt::AlignCenter);
-
-        connect(cb, SIGNAL(stateChanged(int)), SLOT(colSkipCBChanged(int)));
-    }
-}
-
-/*
- *
- */
-std::vector<bool> Frontend::colSkipsFromCBs(void)
-{
-    vector<bool> skips(diag.cols(), false);
-
-    for (int i = 0; i < diag.cols(); i++)
-        skips[i] = colSkipsCBs[i]->isChecked();
-
-    return skips;
-}
-
-/*
- *
- */
-void Frontend::updateColSkips(void)
-{
-    vector<bool> skips = diag.kbdColSkips();
-
-    for (int i = 0; i < diag.cols(); i++)
-        colSkipsCBs[i]->setChecked(skips[i]);
-}
-
-/*
- *
- */
-void Frontend::colSkipCBChanged(int)
-{
-    cerr << "setting kbd col skips" << endl;
-
-    diag.setKbdColSkips(colSkipsFromCBs());
-
-    setKeyColsEnabled();
-}
-
-/*
- *
- */
 void Frontend::setKeyColsEnabled(void)
 {
-    vector<bool> skips = colSkipsFromCBs();
+    vector<bool> skips = colSkips->state();
     for (size_t layer = 0; layer < keyWidgets.size(); layer++)
         for (int col = 0; col < diag.cols(); col++)
             for (int row = 0; row < diag.rows(); row++)
                 keyWidgets[layer][col][row]->setEnabled(!skips[col]);
-}
-
-/*
- *
- */
-void Frontend::storeColSkipsButtonClicked(void)
-{
-    setEnabled(false);
-
-    diag.storeKbdColSkips();
-
-    QTimer::singleShot(2000, this, SLOT(storeColSkipsComplete()));
-}
-
-/*
- *
- */
-void Frontend::storeColSkipsComplete(void)
-{
-    updateColSkips();
-    setEnabled(true);
-}
-
-/*
- *
- */
-void Frontend::colSkipsHelpButtonClicked(void)
-{
-    QMessageBox::information(this, "Column skips help",
-            "<p>Some keyboards have unused columns. If these are connected to "
-            "GND, as with some smaller Model F keyboards, the keyboard "
-            "controller can eventually become damaged. Setting a column skip "
-            "for those columns will mean they are never driven.</p>"
-            "<p>This can also speed up the scan-rate for matrices which have "
-            "valid columns but with no keys.</p>");
-}
-
-/*
- *
- */
-void Frontend::queryKbdVersion(void)
-{
-    kbdVersionLabel->setText(QString::fromStdString(diag.version()));
-    kbdNKROLabel->setText(diag.usingNKROReport() ? "Yes" : "No");
-
-    switch (diag.keyboardType()) 
-    {
-        case dktBeamspring:
-            kbdTypeLabel->setText("Beamspring");
-            break;
-        case dktBeamspringDisplaywriter:
-            kbdTypeLabel->setText("Beamspring Displaywriter");
-            break;
-        case dktModelF:
-            kbdTypeLabel->setText("Model F");
-            break;
-        default:
-            kbdTypeLabel->setText("(invalid)");
-            break;
-    }
 }
 
 /*
@@ -942,7 +315,7 @@ void Frontend::updateKeyStates(void)
 /*
  *
  */
-void Frontend::importMatrixButtonClicked(void)
+void Frontend::importConfig(void)
 {
     QString filename = QFileDialog::getOpenFileName(this, "Import layout",
             QString(), "Layout files (*.l)");
@@ -951,14 +324,16 @@ void Frontend::importMatrixButtonClicked(void)
 
     QString errStr;
     vector<vector<vector<unsigned char>>> scancodes;
-    vector<LayerCondition> layerConditions;
-    vector<bool> colSkips;
+    vector<LayerCondition> lcs;
+    vector<bool> cs;
     int expMode, expVal1, expVal2;
+    vector<unsigned char> macroBytes;
     if (!importLayout(filename,
                 scancodes,
-                layerConditions,
-                colSkips,
+                lcs,
+                cs,
                 expMode, expVal1, expVal2,
+                macroBytes,
                 errStr))
     {
         QMessageBox::critical(this, "Error",
@@ -969,13 +344,15 @@ void Frontend::importMatrixButtonClicked(void)
     try
     {
         diag.setScancodes(scancodes);
-        diag.setLayerConditions(layerConditions);
-        diag.setKbdColSkips(colSkips);
+        diag.setLayerConditions(lcs);
+        diag.setKbdColSkips(cs);
         diag.setExpMode(expMode, expVal1, expVal2);
+        diag.writeMacroBytes(macroBytes);
         buildMatrix();
-        buildLayerConditions();
-        updateColSkips();
-        updateExpMode();
+        layerConditions->rebuild();
+        colSkips->update();
+        expansionHeader->updateMode();
+        macros->loadFromKeyboard();
     }
     catch (std::exception &e)
     {
@@ -986,7 +363,7 @@ void Frontend::importMatrixButtonClicked(void)
 /*
  *
  */
-void Frontend::exportMatrixButtonClicked(void)
+void Frontend::exportConfig(void)
 {
     QString filename = QFileDialog::getSaveFileName(this, "Export layout",
             "layout.l", "Layout files (*.l)");
@@ -996,11 +373,12 @@ void Frontend::exportMatrixButtonClicked(void)
     QString errStr;
     if (!exportLayout(filename,
                 keyWidgets,
-                layerConditionWatchers,
-                colSkipsFromCBs(),
-                expModeCombo->itemData(expModeCombo->currentIndex()).toInt(),
-                expVal1SpinBox->value(),
-                expVal2SpinBox->value(),
+                layerConditions->layerConditionWatchers,
+                colSkips->state(),
+                expansionHeader->mode(),
+                expansionHeader->val1(),
+                expansionHeader->val2(),
+                macros->asBytes(),
                 errStr))
         QMessageBox::critical(this, "Error",
                 QString("Could not export layout: ") + errStr);

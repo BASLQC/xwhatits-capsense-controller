@@ -231,7 +231,7 @@ kbdFillReport(USB_KeyboardReport_Data_t *kbdReport)
 	}
 
 	/* copy modifiers straight across; 0xe0--0xe7 are whole, in byte 28 */
-	kbdReport->Modifier = kbdSCBmp[HID_KEYBOARD_SC_LEFT_CONTROL / 8];
+	kbdReport->Modifier = kbdSCMods(kbdSCBmp);
 }
 
 /*
@@ -248,16 +248,16 @@ kbdFillNKROReport(NKROReport *report)
 	     i++)
 		report->codeBmp[i] = kbdSCBmp[i];
 
-	/* zero scancodes at the beginning and the end that don't belong in this
-	 * report: 0x00--0x02 (ignored, pressed, released) and 0xa5--0xa7
+	/* zero scancodes at the beginning and the end that don't belong in
+	 * this report: 0x00--0x03 (ignored, pressed etc.) and 0xa5--0xa7
 	 * (system power, sleep, wake)
 	 */
-	report->codeBmp[0]  &= 0xf8;
+	report->codeBmp[0]  &= 0xf0;
 	report->codeBmp[20] &= 0x1f;
 
 
 	/* copy modifiers straight across; 0xe0--0xe7 are whole, in byte 28 */
-	report->modifiers = kbdSCBmp[HID_KEYBOARD_SC_LEFT_CONTROL / 8];
+	report->modifiers = kbdSCMods(kbdSCBmp);
 }
 
 /*

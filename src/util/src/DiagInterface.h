@@ -18,6 +18,7 @@
 #define DIAGINTERFACE_H
 
 #include <QTime>
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <hidapi.h>
@@ -62,6 +63,8 @@ class DiagInterface
         std::vector<std::string> listDevPaths(void);
         void openDev(std::string devPath);
 
+        void updateControllerInfo(void);
+
         int numLayers(void) { return _numLayers; }
         int numLayerConditions(void) { return _numLayerConditions; }
         int cols(void) { return _cols; }
@@ -103,6 +106,10 @@ class DiagInterface
         void writeEEPROMByte(int addr, unsigned char val);
 
         std::vector<unsigned char> debugInfo(void);
+
+        unsigned short macroEEPROMSize(void); 
+        std::vector<unsigned char> macroBytes(void);
+        void writeMacroBytes(std::vector<unsigned char> bytes);
 
         void setScanEnabled(bool enabled);
 

@@ -79,6 +79,14 @@ int main(int argc, char **argv)
     QCommandLineOption debugOpt("debug", "show debugging information");
     parser.addOption(debugOpt);
 
+    QCommandLineOption macroEEPROMSizeOpt("macro-eeprom-size",
+            "show total space available to macros in EEPROM");
+    parser.addOption(macroEEPROMSizeOpt);
+
+    QCommandLineOption macrosOpt(QStringList() << "m" << "macros",
+            "dump macros");
+    parser.addOption(macrosOpt);
+
     QCommandLineOption bootloaderOpt(QStringList() << "b" << "bootloader",
             "reboot controller into dfu bootloader");
     parser.addOption(bootloaderOpt);
@@ -263,6 +271,22 @@ int main(int argc, char **argv)
         for (size_t i = 0; i < d.size(); i++)
             cout << dec << setw(4) << setfill(' ') << i << ": 0x" <<
                 hex << setw(2) << setfill('0') << (unsigned int)d[i] << endl;
+    }
+
+    if (parser.isSet(macroEEPROMSizeOpt))
+    {
+        cerr << "total bytes of macro space:" << endl;
+        cout << diag.macroEEPROMSize() << endl;
+    }
+
+    if (parser.isSet(macrosOpt))
+    {
+        cerr << "macro bytes:" << endl;
+        vector<unsigned char> macros = diag.macroBytes();
+        for (size_t i = 0; i < macros.size(); i++)
+            cout << dec << setw(4) << setfill(' ') << i << ": 0x" <<
+                hex << setw(2) << setfill('0') << (unsigned int)macros[i] <<
+                endl;
     }
 
     if (parser.isSet(writeEEPROMOpt))

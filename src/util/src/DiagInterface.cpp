@@ -153,6 +153,14 @@ void DiagInterface::openDev(std::string devPath)
     if (!dev)
         throw runtime_error("error: couldn't open device");
 
+    updateControllerInfo();
+}
+
+/*
+ *
+ */
+void DiagInterface::updateControllerInfo(void)
+{
     setState(drNothing, false);
 
     setState(drInfo);
@@ -169,28 +177,11 @@ void DiagInterface::openDev(std::string devPath)
  */
 unsigned short DiagInterface::vref(void)
 {
-    int val = -1;
+    unsigned short val;
 
-    /* wait for reported vref to settle---not sure why first read sometimes
-     * appears as old result, despite it changing on controller---no doubt
-     * some misunderstanding about how LUFA or libusb works on my part
-     */
-    for (int i = 0; i < 16; i++)
-    {
-        int newVal;
-
-        setState(drNothing, false);
-        setState(drVref);
-        newVal = currState[1] + (currState[2] << 8);
-
-        if (val == newVal)
-            break;
-        val = newVal;
-
-        if (i == 15)
-            throw runtime_error("error: too many retries waiting for vref to "
-                    "settle");
-    }
+    setState(drNothing, false);
+    setState(drVref);
+    val = currState[1] + (currState[2] << 8);
 
     return val;
 }
@@ -552,7 +543,7 @@ std::vector<unsigned char> DiagInterface::eepromContents(void)
  */
 void DiagInterface::writeEEPROMByte(int addr, unsigned char val)
 {
-    if (addr < 0 || addr >= 1023)
+    if (addr < 0 || addr > 1023)
         throw runtime_error("error writing EEPROM byte: address must be "
                 "between 0 and 1023");
     sendCmd(dcWriteEEPROMByte, addr & 0xff, addr >> 8, val);
@@ -586,6 +577,73 @@ std::vector<unsigned char> DiagInterface::debugInfo(void)
     }
 
     return v;
+}
+
+/*
+ *
+ */
+unsigned short DiagInterface::macroEEPROMSize(void)
+{
+    unsigned short val;
+
+    setState(drNothing, false);
+    setState(drMacroEEPROMSize);
+    val = currState[1] + (currState[2] << 8);
+
+    return val;
+}
+
+/*
+ *
+ */
+std::vector<unsigned char> DiagInterface::macroBytes(void)
+{
+    vector<unsigned char> v;
+
+    setState(drNothing, false);
+    setState(drMacros);
+
+    int firstLoc = -1;
+    while (firstLoc != currState[1])
+    {
+        if (firstLoc < 0)
+            firstLoc = currState[1];
+
+
+        unsigned int startAddr = (unsigned int)currState[1] * 4;
+        unsigned int endAddr = startAddr + 4;
+        if (endAddr >= v.size())
+            v.resize(endAddr, 0xaa);
+
+        for (int i = 0; i < 4; i++)
+            v[startAddr + i] = (unsigned int)currState[i + 2];
+
+        updateState();
+    }
+
+    return v;
+}
+
+/*
+ *
+ */
+void DiagInterface::writeMacroBytes(std::vector<unsigned char> bytes)
+{
+    unsigned char buf[8];
+    buf[0] = dcWriteMacroSegment;
+
+    for (unsigned int segment = 0; segment <= (bytes.size() / 4); segment++)
+    {
+        buf[1] = segment;
+
+        fill(&buf[2], &buf[8], 0xff);
+
+        auto it = bytes.begin() + (segment * 4);
+        copy(it, min(it + 4, bytes.end()), &buf[2]);
+        sendCtrl(buf);
+    }
+
+    sendCmd(dcLoadMacros, 1);
 }
 
 /*
@@ -680,9 +738,9 @@ void DiagInterface::sendCmd(DiagReportCommand cmd, unsigned int data)
  */
 void DiagInterface::sendCtrl(unsigned char buf[8])
 {
-    unsigned char data[sizeof(buf) + 1];
+    unsigned char data[9];
 
-    data[0] = 0;
+    data[0] = 0; 
     memcpy(&data[1], buf, sizeof(data));
 
     bool success = false;

@@ -132,6 +132,7 @@ EVENT_USB_Device_StartOfFrame(void)
 	HID_Device_MillisecondElapsed(&extrakeyHIDIface);
 
 	expMSTick();
+	macrosMSTick();
 }
 
 /*
@@ -283,9 +284,13 @@ main(void)
 		 */
 		if (( usingNKROReport() && !updateNKROReport) ||
 		    (!usingNKROReport() && !updateKeyboardReport)) {
-			bool scanChanged = kbdUpdateSCBmp();
-			bool expChanged  = expProcessScan(scanChanged);
-			if (scanChanged || expChanged) {
+			bool needsUpdate = false;
+
+			needsUpdate |= kbdUpdateSCBmp();
+			needsUpdate |= macrosProcessScan();
+			needsUpdate |= expProcessScan(needsUpdate);
+
+			if (needsUpdate) {
 				updateKeyboardReport = true;
 				updateNKROReport     = true;
 				updateSystemReport   = true;

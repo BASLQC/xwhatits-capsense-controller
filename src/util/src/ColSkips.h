@@ -14,24 +14,43 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.  
  ******************************************************************************/
-#ifndef SCANCODES_H
-#define SCANCODES_H
+#ifndef COLSKIPS_H
+#define COLSKIPS_H
 
-#include <string>
+#include <QCheckBox>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QTimer>
+#include <QToolButton>
+#include <QVBoxLayout>
+#include <QWidget>
+#include "DiagInterface.h"
 
-std::string scancodeName(unsigned char scancode);
-
-enum ScancodesModBits
+class ColSkips: public QWidget
 {
-    smbLCtrl,
-    smbLShift,
-    smbLAlt,
-    smbLGUI,
-    smbRCtrl,
-    smbRShift,
-    smbRAlt,
-    smbRGUI
+    Q_OBJECT
+
+    public:
+        ColSkips(DiagInterface &diag, QWidget *parent = NULL);
+        void updateState(void);
+        std::vector<bool> state(void);
+
+    signals:
+        void skipsChanged(void);
+
+    private:
+        DiagInterface &diag;
+        std::vector<QCheckBox *> skipCBs;
+
+    private slots:
+        void storeButtonClicked(void);
+        void storeComplete(void);
+        void helpButtonClicked(void);
+        void skipCBChanged(int);
+
 };
-std::string scancodeModName(unsigned char mod);
 
 #endif
