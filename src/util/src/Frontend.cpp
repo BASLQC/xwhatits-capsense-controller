@@ -216,8 +216,8 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
     hbox1->setSizeConstraint(QLayout::SetMinimumSize);
 
     QVBoxLayout *vbox1 = new QVBoxLayout;
-    vbox1->addLayout(hbox1);
-    vbox1->addWidget(matrixGroup);
+    vbox1->addLayout(hbox1, 1);
+    vbox1->addWidget(matrixGroup, 10);
     vbox1->setSizeConstraint(QLayout::SetMinimumSize);
 
     setLayout(vbox1);
@@ -488,12 +488,13 @@ void Frontend::autoCalButtonClicked(void)
  */
 void Frontend::autoCalComplete(void)
 {
-    unsigned short vref = diag.vref();
+    cachedVref = diag.vref();
 
     QMessageBox::StandardButton result = QMessageBox::question(this,
             "Auto-calibration complete",
             "Auto-calibration finished, threshold is " +
-            QString::number(vref) + ". Would you like auto-calibration to "
+            QString::number(cachedVref) + ". "
+            "Would you like auto-calibration to "
             "take place automatically every time the keyboard is powered up?",
             QMessageBox::Yes | QMessageBox::No);
 
@@ -501,9 +502,19 @@ void Frontend::autoCalComplete(void)
     {
         diag.setVref(65535);
         diag.storeVref();
-        diag.setVref(vref);
+        QTimer::singleShot(1000, this, SLOT(autoCalEnableComplete()));
     }
+    else
+        updateVref();
+}
 
+/*
+ *
+ */
+void Frontend::autoCalEnableComplete(void)
+{
+    diag.setVref(cachedVref);
+    setEnabled(true);
     updateVref();
 }
 
@@ -512,7 +523,17 @@ void Frontend::autoCalComplete(void)
  */
 void Frontend::storeVrefButtonClicked(void)
 {
+    setEnabled(false);
     diag.storeVref();
+    QTimer::singleShot(2000, this, SLOT(storeVrefComplete()));
+}
+
+/*
+ *
+ */
+void Frontend::storeVrefComplete(void)
+{
+    setEnabled(true);
 }
 
 /*

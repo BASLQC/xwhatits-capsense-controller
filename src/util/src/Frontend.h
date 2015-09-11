@@ -77,6 +77,7 @@ class Frontend: public QWidget
         std::vector<LayerConditionWatcher *> layerConditionWatchers;
         QPushButton *storeMatrixButton;
         QPushButton *loadMatrixButton;
+        unsigned short cachedVref;
 
         void buildColSkips(void);
         std::vector<bool> colSkipsFromCBs(void);
@@ -87,7 +88,9 @@ class Frontend: public QWidget
         void setVrefFromBox(void);
         void autoCalButtonClicked(void);
         void autoCalComplete(void);
+        void autoCalEnableComplete(void);
         void storeVrefButtonClicked(void);
+        void storeVrefComplete(void);
         void vrefHelpButtonClicked(void);
 
         void populateExpModeCombo(void);

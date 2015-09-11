@@ -123,12 +123,12 @@ kbdCalibrate(void)
 	hiPoint = val;
 
 	/* Set resulting value part-way between. Your random fraction for today
-	 * is fifteen sixteenths.
+	 * is seven eighths.
 	 */
 #if defined(KBD_ACTIVE_LOW)
-	vrefSet(((loPoint - hiPoint) / 16) * 15 + hiPoint);
+	vrefSet(((loPoint - hiPoint) / 8) * 7 + hiPoint);
 #elif defined(KBD_ACTIVE_HIGH)
-	vrefSet(((hiPoint - loPoint) / 16) * 15 + loPoint);
+	vrefSet(((hiPoint - loPoint) / 8) * 7 + loPoint);
 #endif
 
 	expReset();
