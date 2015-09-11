@@ -1,5 +1,5 @@
 /******************************************************************************
-  Copyright 2014 Tom Cornall
+  Copyright 2014 Tom Wong-Cornall
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,28 +21,15 @@
 
 #include "kbd.h"
 
-extern uint8_t layerMatrix0[KBD_COLS][KBD_ROWS];
-extern uint8_t layerMatrix1[KBD_COLS][KBD_ROWS];
-extern uint8_t layerMatrix2[KBD_COLS][KBD_ROWS];
-extern uint8_t layerMatrix3[KBD_COLS][KBD_ROWS];
-extern uint8_t layerConditions[LAYERS_NUM_CONDITIONS];
+extern uint8_t layersMatrix[KBD_COLS][KBD_ROWS];
+extern uint8_t layersConditions[LAYERS_NUM_CONDITIONS];
 extern uint8_t layersDefaultLayer;
+extern uint8_t layersSelectedLayer;
 
-void    layersLoad(void);
-void    layersStore(void);
-uint8_t layersWhichLayer(void);
-
-static inline uint8_t (*layersMatrix(uint8_t layer))[KBD_COLS][KBD_ROWS] {
-	switch (layer) {
-	case 1:
-		return &layerMatrix1;
-	case 2:
-		return &layerMatrix2;
-	case 3:
-		return &layerMatrix3;
-	default:
-		return &layerMatrix0;
-	}
-}
+void layersInit(void);
+void layersLoad(uint8_t layer);
+void layersSetScancode(uint8_t layer, uint8_t col, uint8_t row, uint8_t sc);
+void layersSetCondition(uint8_t idx, uint8_t val);
+void layersProcessScan(void);
 
 #endif

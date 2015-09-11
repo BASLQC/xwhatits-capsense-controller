@@ -1,5 +1,5 @@
-update=Mon 11 Aug 2014 11:27:32 NZST
-last_client=pcbnew
+update=Wed 10 Sep 2014 16:31:18 NZST
+last_client=cvpcb
 [eeschema]
 version=1
 LibDir=/home/tom/sysdev/kicad-libs
@@ -39,20 +39,15 @@ LibName27=opto
 LibName28=atmel
 LibName29=contrib
 LibName30=valves
-LibName31=micrel
-[cvpcb]
-version=1
-NetIExt=net
-[cvpcb/libraries]
-EquName1=devcms
+LibName31=connectors
 [pcbnew]
 version=1
-LastNetListRead=solenoid-driver.net
+LastNetListRead=amkey-usb.net
 UseCmpFile=1
-PadDrill="    4.000000"
-PadDrillOvalY="    4.000000"
-PadSizeH="    8.000000"
-PadSizeV="    8.000000"
+PadDrill="    0.600000"
+PadDrillOvalY="    0.600000"
+PadSizeH="    1.500000"
+PadSizeV="    1.500000"
 PcbTextSizeV="    1.500000"
 PcbTextSizeH="    1.500000"
 PcbTextThickness="    0.300000"
@@ -61,11 +56,10 @@ ModuleTextSizeH="    1.000000"
 ModuleTextSizeThickness="    0.150000"
 SolderMaskClearance="    0.000000"
 SolderMaskMinWidth="    0.000000"
-DrawSegmentWidth="    0.060000"
+DrawSegmentWidth="    0.200000"
 BoardOutlineThickness="    0.100000"
 ModuleOutlineThickness="    0.150000"
 [pcbnew/libraries]
-LibDir=/home/tom/sysdev/kicad-libs
 LibName1=sockets
 LibName2=connect
 LibName3=discret
@@ -82,6 +76,15 @@ LibName13=led
 LibName14=dip_sockets
 LibName15=pga_sockets
 LibName16=valves
-LibName17=INDUCTORS
-LibName18=TEST_PADS
-LibName19=DIODES
+LibName17=DHVQFN16
+LibName18=EXTRA_PIN_ARRAY
+LibName19=HC49US
+LibName20=RPACK
+LibName21=TEST_PADS
+LibName22=USB
+LibDir=/home/tom/sysdev/kicad-libs
+[cvpcb]
+version=1
+NetIExt=net
+[cvpcb/libraries]
+EquName1=devcms

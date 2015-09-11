@@ -25,19 +25,16 @@
 
 /* handling of 6-pin expansion header (P2) */
 
-extern uint8_t	expMode;
-extern uint8_t	expVal1;
-extern uint8_t	expVal2;
+extern uint8_t expMode;
+extern uint8_t expVal1;
+extern uint8_t expVal2;
 
-void	expClear(void);
-void	expReset(void);
-void	expMSTick(void);
-void	expKeyPositiveEdge(void);
-void	expPostProcessStdKbdReport(USB_KeyboardReport_Data_t *report,
-				   uint8_t usedKeyCodes);
-void	expPostProcessNKROKbdReport(NKROReport *report);
-void	expSetLockLEDs(uint8_t leds);
-void	expStore(void);
-void	expLoad(void);
+void expClear(void);
+void expReset(void);
+void expMSTick(void);
+bool expProcessScan(bool scanChanged);
+void expSetMode(uint8_t mode, uint8_t val1, uint8_t val2);
+void expStore(void);
+void expLoad(void);
 
 #endif

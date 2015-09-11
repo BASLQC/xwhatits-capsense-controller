@@ -23,7 +23,8 @@ using namespace std;
  */
 Frontend::Frontend(DiagInterface &diag, QWidget *parent):
     QWidget(parent),
-    diag(diag)
+    diag(diag),
+    kbdFocusEnabled(false)
 {
     setWindowTitle("IBM Capsense USB Util");
 
@@ -36,6 +37,7 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
     kbdTypeLabel = new QLabel;
     kbdMatrixSizeLabel = new QLabel;
     kbdLayerCountLabel = new QLabel;
+    kbdNKROLabel = new QLabel;
 
     QGridLayout *infoGrid = new QGridLayout;
     infoGrid->addWidget(new QLabel("Util version:"), 0, 0);
@@ -48,6 +50,8 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
     infoGrid->addWidget(kbdMatrixSizeLabel, 3, 1);
     infoGrid->addWidget(new QLabel("Layer count:"), 4, 0);
     infoGrid->addWidget(kbdLayerCountLabel, 4, 1);
+    infoGrid->addWidget(new QLabel("NKRO mode:"), 5, 0);
+    infoGrid->addWidget(kbdNKROLabel, 5, 1);
 
     infoGroup->setLayout(infoGrid);
 
@@ -79,25 +83,19 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
     vrefHelpButton->setToolTip("Help");
 
     QLabel *vrefSpinBoxLabel = new QLabel("Current threshold:");
-    vrefSpinBox = new NonFocusedSpinBox;
+    vrefSpinBox = new NonFocusedSpinBox(kbdFocusEnabled);
     vrefSpinBox->setMaximum(65535);
-    QHBoxLayout *vrefSpinBoxHBox = new QHBoxLayout;
-    vrefSpinBoxHBox->addWidget(vrefSpinBoxLabel);
-    vrefSpinBoxHBox->addWidget(vrefSpinBox);
-
     autoCalButton = new QPushButton;
     storeVrefButton = new QPushButton("Store override in EEPROM");
 
-    QHBoxLayout *vrefButtonHBox = new QHBoxLayout;
-    vrefButtonHBox->addWidget(autoCalButton);
-    vrefButtonHBox->addWidget(storeVrefButton);
-    vrefButtonHBox->addWidget(vrefHelpButton);
+    QGridLayout *vrefGrid = new QGridLayout;
+    vrefGrid->addWidget(vrefSpinBoxLabel, 0, 0);
+    vrefGrid->addWidget(vrefSpinBox, 0, 1);
+    vrefGrid->addWidget(vrefHelpButton, 0, 2);
+    vrefGrid->addWidget(autoCalButton, 1, 0, 1, 3);
+    vrefGrid->addWidget(storeVrefButton, 2, 0, 1, 3);
 
-    QVBoxLayout *vrefVBox = new QVBoxLayout;
-    vrefVBox->addLayout(vrefSpinBoxHBox);
-    vrefVBox->addLayout(vrefButtonHBox);
-
-    vrefGroup->setLayout(vrefVBox);
+    vrefGroup->setLayout(vrefGrid);
 
     QWidget::setTabOrder(vrefHelpButton, vrefSpinBox);
 
@@ -106,47 +104,64 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
      */
     QGroupBox *expGroup = new QGroupBox("Expansion header");
 
-    QLabel *expModeComboLabel = new QLabel("Mode:");
-    expModeCombo = new NonFocusedComboBox;
+    expModeCombo = new NonFocusedComboBox(kbdFocusEnabled);
     populateExpModeCombo();
 
     expVal1Label = new QLabel("Extend time (ms):");
-    expVal1SpinBox = new NonFocusedSpinBox;
+    expVal1SpinBox = new NonFocusedSpinBox(kbdFocusEnabled);
     expVal1SpinBox->setMaximum(255);
 
     expVal2Label = new QLabel("Retract time (ms):");
-    expVal2SpinBox = new NonFocusedSpinBox;
+    expVal2SpinBox = new NonFocusedSpinBox(kbdFocusEnabled);
     expVal2SpinBox->setMaximum(255);
 
     QPushButton *expStoreButton = new QPushButton("Store in EEPROM");
 
-    QGridLayout *expGrid = new QGridLayout;
-    expGrid->addWidget(expModeComboLabel, 0, 0);
-    expGrid->addWidget(expModeCombo, 0, 1);
-    expGrid->addWidget(expVal1Label, 1, 0);
-    expGrid->addWidget(expVal1SpinBox, 1, 1);
-    expGrid->addWidget(expVal2Label, 2, 0);
-    expGrid->addWidget(expVal2SpinBox, 2, 1);
-    expGrid->addWidget(expStoreButton, 3, 1);
+    QVBoxLayout *expVBox = new QVBoxLayout;
+    expVBox->addStretch();
+    expVBox->addWidget(expModeCombo);
+    expVBox->addWidget(expVal1Label);
+    expVBox->addWidget(expVal1SpinBox);
+    expVBox->addWidget(expVal2Label);
+    expVBox->addWidget(expVal2SpinBox);
+    expVBox->addWidget(expStoreButton);
+    expVBox->addStretch();
 
-    expGroup->setLayout(expGrid);
+    expGroup->setLayout(expVBox);
 
     /*
-     * bootloader section
+     * control section
      */
-    QGroupBox *bootloaderGroup = new QGroupBox("Bootloader");
+    QGroupBox *controlGroup = new QGroupBox("Control");
+
+    QToolButton *haltScanHelpButton = new QToolButton;
+    haltScanHelpButton->setText("?");
+    haltScanHelpButton->setToolTip("Help");
+    QPushButton *haltScanButton = new QPushButton("Emergency halt");
+    haltScanButton->setCheckable(true);
+    haltScanButton->setSizePolicy(QSizePolicy::Expanding,
+            QSizePolicy::Expanding);
+
+    QToolButton *guiKbdLockHelpButton = new QToolButton;
+    guiKbdLockHelpButton->setText("?");
+    haltScanHelpButton->setToolTip("Help");
+    QPushButton *guiKbdLockButton = new QPushButton("GUI keyboard unlock");
+    guiKbdLockButton->setCheckable(true);
 
     QToolButton *bootloaderHelpButton = new QToolButton;
     bootloaderHelpButton->setText("?");
     bootloaderHelpButton->setToolTip("Help");
-
     bootloaderButton = new QPushButton("Enter bootloader");
 
-    QHBoxLayout *bootloaderHBox = new QHBoxLayout;
-    bootloaderHBox->addWidget(bootloaderButton);
-    bootloaderHBox->addWidget(bootloaderHelpButton);
+    QGridLayout *controlGrid = new QGridLayout;
+    controlGrid->addWidget(haltScanButton, 0, 0, 3, 1);
+    controlGrid->addWidget(haltScanHelpButton, 1, 1);
+    controlGrid->addWidget(guiKbdLockButton, 3, 0);
+    controlGrid->addWidget(guiKbdLockHelpButton, 3, 1);
+    controlGrid->addWidget(bootloaderButton, 4, 0);
+    controlGrid->addWidget(bootloaderHelpButton, 4, 1);
 
-    bootloaderGroup->setLayout(bootloaderHBox);
+    controlGroup->setLayout(controlGrid);
 
     /*
      * matrix stuff
@@ -185,15 +200,10 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
     matrixTabWidget->addTab(colSkipsWidget, "Column Skips");
     buildColSkips();
 
-    loadMatrixButton = new QPushButton("Load from EEPROM");
-    storeMatrixButton = new QPushButton("Store in EEPROM");
-
     QPushButton *importMatrixButton = new QPushButton("Import layout");
     QPushButton *exportMatrixButton = new QPushButton("Export layout");
 
     QHBoxLayout *layoutHBox = new QHBoxLayout;
-    layoutHBox->addWidget(loadMatrixButton);
-    layoutHBox->addWidget(storeMatrixButton);
     layoutHBox->addWidget(importMatrixButton);
     layoutHBox->addWidget(exportMatrixButton);
 
@@ -212,7 +222,7 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
     hbox1->addWidget(stateGroup);
     hbox1->addWidget(vrefGroup);
     hbox1->addWidget(expGroup);
-    hbox1->addWidget(bootloaderGroup);
+    hbox1->addWidget(controlGroup);
     hbox1->setSizeConstraint(QLayout::SetMinimumSize);
 
     QVBoxLayout *vbox1 = new QVBoxLayout;
@@ -236,7 +246,8 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
             SLOT(vrefValueChanged(int)));
     connect(vrefMaskTimer, SIGNAL(timeout()), SLOT(setVrefFromBox()));
     connect(autoCalButton, SIGNAL(clicked()), SLOT(autoCalButtonClicked()));
-    connect(storeVrefButton, SIGNAL(clicked()), SLOT(storeVrefButtonClicked()));
+    connect(storeVrefButton, SIGNAL(clicked()),
+            SLOT(storeVrefButtonClicked()));
     connect(vrefHelpButton, SIGNAL(clicked()), SLOT(vrefHelpButtonClicked()));
     connect(expModeCombo, SIGNAL(currentIndexChanged(int)),
             SLOT(setExpMode(int)));
@@ -248,15 +259,19 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
             SLOT(bootloaderButtonClicked()));
     connect(bootloaderHelpButton, SIGNAL(clicked()),
             SLOT(bootloaderHelpButtonClicked()));
+    connect(guiKbdLockButton, SIGNAL(toggled(bool)),
+            SLOT(guiKbdLockButtonToggled(bool)));
+    connect(guiKbdLockHelpButton, SIGNAL(clicked()),
+            SLOT(guiKbdLockHelpButtonClicked()));
+    connect(haltScanButton, SIGNAL(toggled(bool)),
+            SLOT(haltScanButtonToggled(bool)));
+    connect(haltScanHelpButton, SIGNAL(clicked()),
+            SLOT(haltScanHelpButtonClicked()));
     connect(storeColSkipsButton, SIGNAL(clicked()),
                 SLOT(storeColSkipsButtonClicked()));
     connect(colSkipsHelpButton, SIGNAL(clicked()),
             SLOT(colSkipsHelpButtonClicked()));
     connect(keyStatesTimer, SIGNAL(timeout()), SLOT(updateKeyStates()));
-    connect(storeMatrixButton, SIGNAL(clicked()),
-            SLOT(storeMatrixButtonClicked()));
-    connect(loadMatrixButton, SIGNAL(clicked()),
-            SLOT(loadMatrixButtonClicked()));
     connect(importMatrixButton, SIGNAL(clicked()),
             SLOT(importMatrixButtonClicked()));
     connect(exportMatrixButton, SIGNAL(clicked()),
@@ -587,6 +602,55 @@ void Frontend::bootloaderHelpButtonClicked(void)
 /*
  *
  */
+void Frontend::guiKbdLockButtonToggled(bool checked)
+{
+    kbdFocusEnabled = checked;
+}
+
+/*
+ *
+ */
+void Frontend::guiKbdLockHelpButtonClicked(void)
+{
+    QMessageBox::information(this, "GUI keyboard lock help",
+            "When this is depressed, keypresses will be allowed to interact "
+            "with the utility's user interface. Leaving it unpressed prevents "
+            "rogue keypresses from an incorrect voltage threshold from "
+            "overwriting settings.");
+}
+
+/*
+ *
+ */
+void Frontend::haltScanButtonToggled(bool checked)
+{
+    if (checked)
+    {
+        cerr << "halting scanning..." << endl;
+        diag.setScanEnabled(false);
+    }
+    else
+    {
+        cerr << "resuming scanning..." << endl;
+        diag.setScanEnabled(true);
+    }
+}
+
+/*
+ *
+ */
+void Frontend::haltScanHelpButtonClicked(void)
+{
+    QMessageBox::information(this, "Emergency halt help",
+            "Depressing this button immediately stops the keyboard from "
+            "scanning and emitting keycodes in case of an incorrect voltage "
+            "threshold causing rapid keypresses. Pressing the button again "
+            "will resume scanning.");
+}
+
+/*
+ *
+ */
 void Frontend::buildMatrix(void)
 {
     vector<vector<vector<unsigned char>>> scancodes = diag.scancodes();
@@ -633,7 +697,7 @@ void Frontend::buildMatrix(void)
 
             for (int row = 0; row < rows; row++)
             {
-                Key *key = new Key(diag, layer, col, row,
+                Key *key = new Key(diag, kbdFocusEnabled, layer, col, row,
                         scancodes[layer][col][row]);
                 keyWidgets[layer][col][row] = key;
                 layerGrid->addWidget(key, row + 1, col);
@@ -698,7 +762,8 @@ void Frontend::buildLayerConditions(void)
 
         QLabel *arrowLabel = new QLabel(QChar(0x2192));
 
-        NonFocusedComboBox *layerCombo = new NonFocusedComboBox;
+        NonFocusedComboBox *layerCombo =
+            new NonFocusedComboBox(kbdFocusEnabled);
         for (int i = 0; i < 4; i++)
             layerCombo->addItem(i == 0 ? "Base Layer" : "Layer " +
                     QString::number(i), i);
@@ -829,6 +894,7 @@ void Frontend::colSkipsHelpButtonClicked(void)
 void Frontend::queryKbdVersion(void)
 {
     kbdVersionLabel->setText(QString::fromStdString(diag.version()));
+    kbdNKROLabel->setText(diag.usingNKROReport() ? "Yes" : "No");
 
     switch (diag.keyboardType()) 
     {
@@ -871,54 +937,6 @@ void Frontend::updateKeyStates(void)
                 keyWidgets[layer][col][row]->setPressed(states[col][row]);
 
     keyMon->updateStates(states);
-}
-
-/*
- *
- */
-void Frontend::storeMatrixButtonClicked(void)
-{
-    setEnabled(false);
-    storeMatrixButton->setText("Writing to EEPROM...");
-
-    diag.storeScancodes();
-
-    /* keyboard will disappear for a bit while it does its thing */
-    QTimer::singleShot(2000, this, SLOT(storeMatrixComplete()));
-}
-
-/*
- *
- */
-void Frontend::storeMatrixComplete(void)
-{
-    setEnabled(true);
-    storeMatrixButton->setText("Store layout in EEPROM");
-}
-
-/*
- *
- */
-void Frontend::loadMatrixButtonClicked(void)
-{
-    setEnabled(false);
-    loadMatrixButton->setText("Reading from EEPROM...");
-
-    diag.loadScancodes();
-
-    /* keyboard will disappear for a bit while it does its thing */
-    QTimer::singleShot(2000, this, SLOT(loadMatrixComplete()));
-}
-
-/*
- *
- */
-void Frontend::loadMatrixComplete(void)
-{
-    setEnabled(true);
-    loadMatrixButton->setText("Load layout from EEPROM");
-
-    buildMatrix();
 }
 
 /*

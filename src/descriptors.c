@@ -50,9 +50,9 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM KeyboardReport[] = {
 };
 
 const USB_Descriptor_HIDReport_Datatype_t PROGMEM NKROReport[] = {
-	HID_RI_USAGE_PAGE(8, 0x01),
-	HID_RI_USAGE(8, 0x06),
-	HID_RI_COLLECTION(8, 0x01),
+	HID_RI_USAGE_PAGE(8, 0x01), // generic desktop
+	HID_RI_USAGE(8, 0x06),      // keyboard
+	HID_RI_COLLECTION(8, 0x01), // application
 		HID_RI_USAGE_PAGE(8, 0x08),      // LED page
 		HID_RI_USAGE_MINIMUM(8, 0x01),   // num lock
 		HID_RI_USAGE_MAXIMUM(8, 0x03),   // scroll lock
@@ -125,7 +125,17 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM NKROReport[] = {
 			     HID_IOF_VARIABLE |
 			     HID_IOF_ABSOLUTE),
 
-		HID_RI_USAGE_PAGE(8, 0x01),      // generic desktop page
+		HID_RI_REPORT_COUNT(8, 0x01),
+		HID_RI_REPORT_SIZE(8, 0x03),
+		HID_RI_INPUT(8, HID_IOF_CONSTANT),
+	HID_RI_END_COLLECTION(0)
+};
+
+const USB_Descriptor_HIDReport_Datatype_t PROGMEM ExtrakeyReport[] = {
+	HID_RI_USAGE_PAGE(8, 0x01), // generic desktop page
+	HID_RI_USAGE(8, 0x80),      // system control
+	HID_RI_COLLECTION(8, 0x01), // application
+	        HID_RI_REPORT_ID(8, EXTRAKEY_REPORTID_SYSTEM),
 		HID_RI_USAGE_MINIMUM(8, 0x81),   // system power down
 		HID_RI_USAGE_MAXIMUM(8, 0x83),   // system wake up
 		HID_RI_LOGICAL_MINIMUM(8, 0x00),
@@ -133,50 +143,56 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM NKROReport[] = {
 		HID_RI_REPORT_COUNT(8, 0x03),
 		HID_RI_REPORT_SIZE(8, 0x01),
 		HID_RI_INPUT(8,
-			     HID_IOF_DATA |
-			     HID_IOF_VARIABLE |
-			     HID_IOF_ABSOLUTE),
+			 HID_IOF_DATA |
+			 HID_IOF_VARIABLE |
+			 HID_IOF_ABSOLUTE),
 
-		HID_RI_USAGE_PAGE(8, 0x0c),      // consumer page
-		HID_RI_USAGE_MINIMUM(8, 0xb0),   // play
-		HID_RI_USAGE_MAXIMUM(8, 0xb8),   // eject
+		HID_RI_REPORT_COUNT(8, 0x01),
+		HID_RI_REPORT_SIZE(8, 0x05),
+		HID_RI_INPUT(8, HID_IOF_CONSTANT),
+	HID_RI_END_COLLECTION(0),
+
+	HID_RI_USAGE_PAGE(8, 0x0c), // consumer page
+	HID_RI_USAGE(8, 0x01),      // consumer control
+	HID_RI_COLLECTION(8, 0x01), // application
+		HID_RI_REPORT_ID(8, EXTRAKEY_REPORTID_CONSUMER),
+		HID_RI_USAGE(8, 0xb0),   // play
+		HID_RI_USAGE(8, 0xb1),   // pause
+		HID_RI_USAGE(8, 0xb2),   // record
+		HID_RI_USAGE(8, 0xb3),   // fast-forward
+		HID_RI_USAGE(8, 0xb4),   // rewind
+		HID_RI_USAGE(8, 0xb5),   // next track
+		HID_RI_USAGE(8, 0xb6),   // prev track
+		HID_RI_USAGE(8, 0xb7),   // stop
+		HID_RI_USAGE(8, 0xb8),   // eject
+		HID_RI_USAGE(8, 0xcd),   // play/pause
+		HID_RI_USAGE(8, 0xe2),   // mute
+		HID_RI_USAGE(8, 0xe9),   // volume++
+		HID_RI_USAGE(8, 0xea),   // volume--
+		HID_RI_USAGE(16, 0x18a), // mail
+		HID_RI_USAGE(16, 0x192), // calculator
+		HID_RI_USAGE(16, 0x194), // file browser
+		HID_RI_USAGE(16, 0x221), // web search
+		HID_RI_USAGE(16, 0x223), // web home
+		HID_RI_USAGE(16, 0x224), // web back
+		HID_RI_USAGE(16, 0x225), // web forward
+		HID_RI_USAGE(16, 0x227), // web refresh
+		HID_RI_USAGE(16, 0x22a), // web bookmarks
 		HID_RI_LOGICAL_MINIMUM(8, 0x00),
 		HID_RI_LOGICAL_MAXIMUM(8, 0x01),
-		HID_RI_REPORT_COUNT(8, 0x09),
+		HID_RI_REPORT_COUNT(8, 0x16),
 		HID_RI_REPORT_SIZE(8, 0x01),
 		HID_RI_INPUT(8,
-			     HID_IOF_DATA |
-			     HID_IOF_VARIABLE |
-			     HID_IOF_ABSOLUTE),
-
-		HID_RI_USAGE_PAGE(8, 0x0c), // consumer page
-		HID_RI_USAGE(8, 0xcd),      // play/pause
-		HID_RI_USAGE(8, 0xe2),      // mute
-		HID_RI_USAGE(8, 0xe9),      // volume++
-		HID_RI_USAGE(8, 0xea),      // volume--
-		HID_RI_USAGE(16, 0x18a),    // mail
-		HID_RI_USAGE(16, 0x192),    // calculator
-		HID_RI_USAGE(16, 0x194),    // file browser
-		HID_RI_USAGE(16, 0x221),    // web search
-		HID_RI_USAGE(16, 0x223),    // web home
-		HID_RI_USAGE(16, 0x224),    // web back
-		HID_RI_USAGE(16, 0x225),    // web forward
-		HID_RI_USAGE(16, 0x227),    // web refresh
-		HID_RI_USAGE(16, 0x22a),    // web bookmarks
-		HID_RI_LOGICAL_MINIMUM(8, 0x00),
-		HID_RI_LOGICAL_MAXIMUM(8, 0x01),
-		HID_RI_REPORT_COUNT(8, 0x0d),
-		HID_RI_REPORT_SIZE(8, 0x01),
-		HID_RI_INPUT(8,
-			     HID_IOF_DATA |
-			     HID_IOF_VARIABLE |
-			     HID_IOF_ABSOLUTE),
+			 HID_IOF_DATA |
+			 HID_IOF_VARIABLE |
+			 HID_IOF_ABSOLUTE),
 
 		HID_RI_REPORT_COUNT(8, 0x01),
 		HID_RI_REPORT_SIZE(8, 0x02),
 		HID_RI_INPUT(8, HID_IOF_CONSTANT),
 	HID_RI_END_COLLECTION(0)
 };
+
 
 const USB_Descriptor_HIDReport_Datatype_t PROGMEM GenericReport[] = {
 	HID_DESCRIPTOR_VENDOR(0x00, 0x01, 0x02, 0x03, GENERIC_REPORT_SIZE)
@@ -215,7 +231,7 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor = {
 
 		.TotalConfigurationSize =
 		   sizeof(USB_Descriptor_Configuration_t),
-		.TotalInterfaces        = 3,
+		.TotalInterfaces        = 4,
 
 		.ConfigurationNumber    = 1,
 		.ConfigurationStrIndex  = NO_DESCRIPTOR,
@@ -264,7 +280,8 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor = {
 		},
 
 		.EndpointAddress   = KEYBOARD_IN_EPADDR,
-		.Attributes        = (EP_TYPE_INTERRUPT | ENDPOINT_ATTR_NO_SYNC |
+		.Attributes        = (EP_TYPE_INTERRUPT |
+				      ENDPOINT_ATTR_NO_SYNC |
 				      ENDPOINT_USAGE_DATA),
 		.EndpointSize      = KBD_EPSIZE,
 		.PollingIntervalMS = 0x0a
@@ -312,7 +329,7 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor = {
 				      ENDPOINT_ATTR_NO_SYNC |
 				      ENDPOINT_USAGE_DATA),
 		.EndpointSize      = GENERIC_EPSIZE,
-		.PollingIntervalMS = 0x0a
+		.PollingIntervalMS = 0x05
 	},
 
 	.NKROInterface = {
@@ -357,6 +374,51 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor = {
 				      ENDPOINT_ATTR_NO_SYNC |
 				      ENDPOINT_USAGE_DATA),
 		.EndpointSize      = NKRO_EPSIZE,
+		.PollingIntervalMS = 0x0a
+	},
+
+	.ExtrakeyInterface = {
+		.Header = {
+			.Size = sizeof(USB_Descriptor_Interface_t),
+			.Type = DTYPE_Interface
+		},
+
+		.InterfaceNumber   = EXTRAKEY_INTERFACE,
+		.AlternateSetting  = 0x00,
+
+		.TotalEndpoints    = 1,
+
+		.Class             = HID_CSCP_HIDClass,
+		.SubClass          = HID_CSCP_NonBootSubclass,
+		.Protocol          = HID_CSCP_NonBootProtocol,
+
+		.InterfaceStrIndex = NO_DESCRIPTOR
+	},
+
+	.ExtrakeyHID = {
+		.Header = {
+			.Size = sizeof(USB_HID_Descriptor_HID_t),
+			.Type = HID_DTYPE_HID
+		},
+
+		.HIDSpec                = VERSION_BCD(01.11),
+		.CountryCode            = 0x00,
+		.TotalReportDescriptors = 1,
+		.HIDReportType          = HID_DTYPE_Report,
+		.HIDReportLength        = sizeof(ExtrakeyReport)
+	},
+
+	.ExtrakeyInEndpoint = {
+		.Header = {
+			.Size = sizeof(USB_Descriptor_Endpoint_t),
+			.Type = DTYPE_Endpoint
+		},
+
+		.EndpointAddress   = EXTRAKEY_IN_EPADDR,
+		.Attributes        = (EP_TYPE_INTERRUPT |
+				      ENDPOINT_ATTR_NO_SYNC |
+				      ENDPOINT_USAGE_DATA),
+		.EndpointSize      = EXTRAKEY_EPSIZE,
 		.PollingIntervalMS = 0x0a
 	},
 };
@@ -438,6 +500,10 @@ CALLBACK_USB_GetDescriptor(const uint16_t wValue,
 			Address = &ConfigurationDescriptor.NKROHID;
 			Size = sizeof(USB_HID_Descriptor_HID_t);
 			break;
+		case EXTRAKEY_INTERFACE:
+			Address = &ConfigurationDescriptor.ExtrakeyHID;
+			Size = sizeof(USB_HID_Descriptor_HID_t);
+			break;
 		}
 		break;
 	case HID_DTYPE_Report:
@@ -453,6 +519,10 @@ CALLBACK_USB_GetDescriptor(const uint16_t wValue,
 		case NKRO_INTERFACE:
 			Address = &NKROReport;
 			Size = sizeof(NKROReport);
+			break;
+		case EXTRAKEY_INTERFACE:
+			Address = &ExtrakeyReport;
+			Size = sizeof(ExtrakeyReport);
 			break;
 		}
 		break;

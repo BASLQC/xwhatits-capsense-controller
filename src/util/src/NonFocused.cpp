@@ -19,9 +19,10 @@
 /*
  *
  */
-NonFocusedSpinBox::NonFocusedSpinBox(void)
+NonFocusedSpinBox::NonFocusedSpinBox(const bool &kbdFocusEnabled):
+    kbdFocusEnabled(kbdFocusEnabled)
 {
-    //setFocusPolicy(Qt::StrongFocus);
+    setFocusPolicy(Qt::StrongFocus);
 }
 
 /*
@@ -30,7 +31,7 @@ NonFocusedSpinBox::NonFocusedSpinBox(void)
 void NonFocusedSpinBox::focusInEvent(QFocusEvent *event)
 {
     QSpinBox::focusInEvent(event);
-    //setFocusPolicy(Qt::WheelFocus);
+    setFocusPolicy(Qt::WheelFocus);
 }
 
 /*
@@ -39,7 +40,7 @@ void NonFocusedSpinBox::focusInEvent(QFocusEvent *event)
 void NonFocusedSpinBox::focusOutEvent(QFocusEvent *event)
 {
     QSpinBox::focusOutEvent(event);
-    //setFocusPolicy(Qt::StrongFocus);
+    setFocusPolicy(Qt::StrongFocus);
 }
 
 /*
@@ -47,8 +48,10 @@ void NonFocusedSpinBox::focusOutEvent(QFocusEvent *event)
  */
 void NonFocusedSpinBox::keyPressEvent(QKeyEvent *event)
 {
-    //event->ignore();
-    QSpinBox::keyPressEvent(event);
+    if (kbdFocusEnabled)
+        QSpinBox::keyPressEvent(event);
+    else
+        event->ignore();
 }
 
 /*
@@ -56,18 +59,19 @@ void NonFocusedSpinBox::keyPressEvent(QKeyEvent *event)
  */
 void NonFocusedSpinBox::wheelEvent(QWheelEvent *event)
 {
-    //if (focusPolicy() == Qt::WheelFocus)
+    if (kbdFocusEnabled || focusPolicy() == Qt::WheelFocus)
         QSpinBox::wheelEvent(event);
-    //else
-    //    event->ignore();
+    else
+        event->ignore();
 }
 
 /*
  *
  */
-NonFocusedComboBox::NonFocusedComboBox(void)
+NonFocusedComboBox::NonFocusedComboBox(const bool &kbdFocusEnabled):
+    kbdFocusEnabled(kbdFocusEnabled)
 {
-    //setFocusPolicy(Qt::StrongFocus);
+    setFocusPolicy(Qt::StrongFocus);
 }
 
 /*
@@ -76,7 +80,7 @@ NonFocusedComboBox::NonFocusedComboBox(void)
 void NonFocusedComboBox::focusInEvent(QFocusEvent *event)
 {
     QComboBox::focusInEvent(event);
-    //setFocusPolicy(Qt::WheelFocus);
+    setFocusPolicy(Qt::WheelFocus);
 }
 
 /*
@@ -85,7 +89,7 @@ void NonFocusedComboBox::focusInEvent(QFocusEvent *event)
 void NonFocusedComboBox::focusOutEvent(QFocusEvent *event)
 {
     QComboBox::focusOutEvent(event);
-    //setFocusPolicy(Qt::StrongFocus);
+    setFocusPolicy(Qt::StrongFocus);
 }
 
 /*
@@ -93,8 +97,10 @@ void NonFocusedComboBox::focusOutEvent(QFocusEvent *event)
  */
 void NonFocusedComboBox::keyPressEvent(QKeyEvent *event)
 {
-    QComboBox::keyPressEvent(event);
-    //event->ignore();
+    if (kbdFocusEnabled)
+        QComboBox::keyPressEvent(event);
+    else
+        event->ignore();
 }
 
 /*
@@ -102,8 +108,8 @@ void NonFocusedComboBox::keyPressEvent(QKeyEvent *event)
  */
 void NonFocusedComboBox::wheelEvent(QWheelEvent *event)
 {
-    //if (focusPolicy() == Qt::WheelFocus)
+    if (kbdFocusEnabled || focusPolicy() == Qt::WheelFocus)
         QComboBox::wheelEvent(event);
-    //else
-    //    event->ignore();
+    else
+        event->ignore();
 }

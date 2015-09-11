@@ -1,7 +1,7 @@
 (export (version D)
   (design
     (source /home/tom/sysdev/ibm-capsense-usb/schem/solenoid-driver.sch)
-    (date "Sat 10 May 2014 17:10:50 NZST")
+    (date "Mon 11 Aug 2014 13:11:39 NZST")
     (tool "eeschema (2013-may-18)-stable"))
   (components
     (comp (ref P1)
@@ -25,7 +25,7 @@
       (sheetpath (names /) (tstamps /))
       (tstamp 533DE0E6))
     (comp (ref D2)
-      (value LED)
+      (value Actuating)
       (libsource (lib device) (part LED))
       (sheetpath (names /) (tstamps /))
       (tstamp 533DE17A))
@@ -75,7 +75,7 @@
       (sheetpath (names /) (tstamps /))
       (tstamp 533FA306))
     (comp (ref D1)
-      (value 1N5819)
+      (value B220A)
       (libsource (lib device) (part DIODESCH))
       (sheetpath (names /) (tstamps /))
       (tstamp 533FA643))

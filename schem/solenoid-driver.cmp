@@ -1,4 +1,4 @@
-Cmp-Mod V01 Created by CvPcb (2013-may-18)-stable date = Sat 10 May 2014 17:11:26 NZST
+Cmp-Mod V01 Created by CvPcb (2013-may-18)-stable date = Mon 11 Aug 2014 12:06:37 NZST
 
 BeginCmp
 TimeStamp = /533F9B5C;
@@ -45,15 +45,15 @@ EndCmp
 BeginCmp
 TimeStamp = /533FA643;
 Reference = D1;
-ValeurCmp = 1N5819;
-IdModule  = DO-41;
+ValeurCmp = B220A;
+IdModule  = DO214AC_SMA;
 EndCmp
 
 BeginCmp
 TimeStamp = /533DE17A;
 Reference = D2;
 ValeurCmp = LED;
-IdModule  = SM1206POL;
+IdModule  = LED-0603;
 EndCmp
 
 BeginCmp

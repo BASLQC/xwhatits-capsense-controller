@@ -21,8 +21,8 @@ using namespace std;
 /*
  *
  */
-Key::Key(DiagInterface &diag, int layer, int col, int row,
-        unsigned char scancode, QWidget *parent):
+Key::Key(DiagInterface &diag, const bool &kbdFocusEnabled, int layer, int col,
+        int row, unsigned char scancode, QWidget *parent):
     QWidget(parent),
     diag(diag),
     layer(layer),
@@ -30,7 +30,7 @@ Key::Key(DiagInterface &diag, int layer, int col, int row,
     row(row)
 {
     int cmbIdx = -1;
-    scancodeCombo = new NonFocusedComboBox;
+    scancodeCombo = new NonFocusedComboBox(kbdFocusEnabled);
     for (unsigned char i = 0x00; i < 0xff; i++)
     {
         string scS = scancodeName(i);

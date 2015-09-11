@@ -17,6 +17,7 @@
 #ifndef DIAGINTERFACE_H
 #define DIAGINTERFACE_H
 
+#include <QTime>
 #include <cstdlib>
 #include <cstring>
 #include <hidapi.h>
@@ -24,6 +25,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 #include "diag_types.h"
 
@@ -65,6 +67,7 @@ class DiagInterface
         int cols(void) { return _cols; }
         int rows(void) { return _rows; }
         DiagKeyboardType keyboardType(void) { return _keyboardType; }
+        bool usingNKROReport(void) { return _usingNKROReport; }
 
         unsigned short vref(void);
         void setVref(unsigned short val);
@@ -96,6 +99,13 @@ class DiagInterface
         void setKbdColSkips(std::vector<bool> skips);
         void storeKbdColSkips(void);
 
+        std::vector<unsigned char> eepromContents(void);
+        void writeEEPROMByte(int addr, unsigned char val);
+
+        std::vector<unsigned char> debugInfo(void);
+
+        void setScanEnabled(bool enabled);
+
     private:
         hid_device *dev;
         unsigned char currState[8];
@@ -104,6 +114,7 @@ class DiagInterface
         int _cols;
         int _rows;
         DiagKeyboardType _keyboardType;
+        bool _usingNKROReport;
 
         void closeDevice(void);
         void sendCmd(DiagReportCommand cmd, unsigned char p1, unsigned char p2);

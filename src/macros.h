@@ -14,58 +14,28 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.  
  ******************************************************************************/
-#include "dac101s101.h"
+#ifndef MACROS_H
+#define MACROS_H
 
-uint16_t dac101s101Vref;
+#define MACROS_NUM_MACROS 32
 
-/*
- *
- */
-void
-dac101s101Init(void)
-{
-	spiInit();
-	spiDeselect();
-}
+#include <string.h>
+#include "eeprom.h"
+#include "kbd.h"
+#include "macro_types.h"
+#include "reports.h"
 
-/*
- *
- */
-void
-dac101s101SetVref(uint16_t vref)
-{
-	dac101s101Vref = vref;
+typedef struct {
+	uint8_t  scancode;
+	uint8_t  modStates;
+	uint8_t  modMask;
+	uint8_t *addr;
+} MacroDef;
 
-	spiSelect();
+extern MacroDef macrosDefs[MACROS_NUM_MACROS];
 
-	vref <<= 2;
-	spi(vref >> 8);
-	spi(vref &  0xff);
+void macrosInit(void);
+void macrosLoad(void);
+void macrosPostProcessNKROReport(NKROReport *report, NKROReport *prevReport);
 
-	spiDeselect();
-}
-
-/*
- *
- */
-void
-dac101s101StoreVref(void)
-{
-	eeprom_update_byte((uint8_t *)EEP_VREF_L, dac101s101Vref &  0xff);
-	eeprom_update_byte((uint8_t *)EEP_VREF_H, dac101s101Vref >> 8);
-}
-
-/*
- *
- */
-void
-dac101s101LoadVref(void)
-{
-	uint16_t val;
-
-	val =   eeprom_read_byte((uint8_t *)EEP_VREF_H);
-	val <<= 8;
-	val |=  eeprom_read_byte((uint8_t *)EEP_VREF_L);
-
-	dac101s101SetVref(val);
-}
+#endif

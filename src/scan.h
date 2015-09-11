@@ -14,58 +14,31 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.  
  ******************************************************************************/
-#include "dac101s101.h"
+#ifndef SCAN_H
+#define SCAN_H
 
-uint16_t dac101s101Vref;
+#include <util/delay_basic.h>
+#include "kbd.h"
+#include "sr.h"
 
-/*
- *
- */
-void
-dac101s101Init(void)
-{
-	spiInit();
-	spiDeselect();
-}
+/* looks backwards, but only because LM339 outputs are open-collector */
+#if defined(KBD_ACTIVE_LOW)
+#	define KBD_ROW_TEST(PINx, Pxn) (PINx & (1 << Pxn))
+#elif defined(KBD_ACTIVE_HIGH)
+#	define KBD_ROW_TEST(PINx, Pxn) (!(PINx & (1 << Pxn)))
+#endif
 
-/*
- *
- */
-void
-dac101s101SetVref(uint16_t vref)
-{
-	dac101s101Vref = vref;
+/* when changing these numbers, remember counting starts from 0 */
+#define SCAN_DB_THRESH 3
+#define SCAN_DB_TOP    7
 
-	spiSelect();
+extern volatile uint8_t scanTick;
+extern volatile int8_t  scanState[KBD_COLS][KBD_ROWS];
 
-	vref <<= 2;
-	spi(vref >> 8);
-	spi(vref &  0xff);
+void scanInit(void);
+void scanEnable(void);
+void scanDisable(void);
+void scanPause(void);
+void scanResume(void);
 
-	spiDeselect();
-}
-
-/*
- *
- */
-void
-dac101s101StoreVref(void)
-{
-	eeprom_update_byte((uint8_t *)EEP_VREF_L, dac101s101Vref &  0xff);
-	eeprom_update_byte((uint8_t *)EEP_VREF_H, dac101s101Vref >> 8);
-}
-
-/*
- *
- */
-void
-dac101s101LoadVref(void)
-{
-	uint16_t val;
-
-	val =   eeprom_read_byte((uint8_t *)EEP_VREF_H);
-	val <<= 8;
-	val |=  eeprom_read_byte((uint8_t *)EEP_VREF_L);
-
-	dac101s101SetVref(val);
-}
+#endif

@@ -53,6 +53,7 @@ class Frontend: public QWidget
 
     private:
         DiagInterface &diag;
+        bool kbdFocusEnabled;
         NonFocusedSpinBox *vrefSpinBox;
         QTimer *vrefMaskTimer;
         QPushButton *autoCalButton;
@@ -63,6 +64,7 @@ class Frontend: public QWidget
         QLabel *kbdTypeLabel;
         QLabel *kbdMatrixSizeLabel;
         QLabel *kbdLayerCountLabel;
+        QLabel *kbdNKROLabel;
         NonFocusedComboBox *expModeCombo;
         QLabel *expVal1Label;
         NonFocusedSpinBox *expVal1SpinBox;
@@ -75,8 +77,6 @@ class Frontend: public QWidget
         QTimer *keyStatesTimer;
         std::vector<std::vector<std::vector<Key *>>> keyWidgets;
         std::vector<LayerConditionWatcher *> layerConditionWatchers;
-        QPushButton *storeMatrixButton;
-        QPushButton *loadMatrixButton;
         unsigned short cachedVref;
 
         void buildColSkips(void);
@@ -103,6 +103,12 @@ class Frontend: public QWidget
         void bootloaderButtonClicked(void);
         void bootloaderHelpButtonClicked(void);
 
+        void guiKbdLockHelpButtonClicked(void);
+        void guiKbdLockButtonToggled(bool checked);
+
+        void haltScanButtonToggled(bool checked);
+        void haltScanHelpButtonClicked(void);
+
         void buildMatrix(void);
         void buildLayerConditions(void);
         void queryKbdVersion(void);
@@ -115,12 +121,6 @@ class Frontend: public QWidget
         void storeColSkipsComplete(void);
         void colSkipsHelpButtonClicked(void);
         void setKeyColsEnabled(void);
-
-        void storeMatrixButtonClicked(void);
-        void storeMatrixComplete(void);
-
-        void loadMatrixButtonClicked(void);
-        void loadMatrixComplete(void);
 
         void importMatrixButtonClicked(void);
         void exportMatrixButtonClicked(void);

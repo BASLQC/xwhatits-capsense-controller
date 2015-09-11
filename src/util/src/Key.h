@@ -32,8 +32,8 @@ class Key: public QWidget
     Q_OBJECT
 
     public:
-        Key(DiagInterface &diag, int layer, int col, int row,
-                unsigned char scancode, QWidget *parent = 0);
+        Key(DiagInterface &diag, const bool &kbdFocusEnabled, int layer,
+                int col, int row, unsigned char scancode, QWidget *parent = 0);
         unsigned char scancode(void);
         void setPressed(bool val);
 

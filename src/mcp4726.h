@@ -1,5 +1,5 @@
 /******************************************************************************
-  Copyright 2014 Tom Cornall
+  Copyright 2014 Tom Wong-Cornall
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by

@@ -1,5 +1,5 @@
 /******************************************************************************
-  Copyright 2014 Tom Cornall
+  Copyright 2014 Tom Wong-Cornall
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,12 +24,16 @@
 #include "diag.h"
 #include "exp.h"
 #include "kbd.h"
+#include "macros.h"
 #include "sr.h"
 #include "vref.h"
 
-static uint8_t prevKeyboardHIDReportBuf[sizeof(USB_KeyboardReport_Data_t)];
-static uint8_t prevGenericHIDReportBuf[GENERIC_REPORT_SIZE];
-static uint8_t prevNKROHIDReportBuf[sizeof(NKROReport)];
+static bool updateKeyboardReport = true;
+static bool updateNKROReport     = true;
+static bool updateSystemReport   = true;
+static bool updateConsumerReport = true;
+
+uint8_t prevGenericReport[GENERIC_REPORT_SIZE];
 
 USB_ClassInfo_HID_Device_t keyboardHIDIface = {
 	.Config = {
@@ -39,8 +43,8 @@ USB_ClassInfo_HID_Device_t keyboardHIDIface = {
 			.Size = KBD_EPSIZE,
 			.Banks = 1,
 		},
-		.PrevReportINBuffer = prevKeyboardHIDReportBuf,
-		.PrevReportINBufferSize = sizeof(prevKeyboardHIDReportBuf),
+		.PrevReportINBuffer = NULL,
+		.PrevReportINBufferSize = sizeof(USB_KeyboardReport_Data_t)
 	}
 };
 
@@ -52,8 +56,8 @@ USB_ClassInfo_HID_Device_t genericHIDIface = {
 			.Size = GENERIC_EPSIZE,
 			.Banks = 1,
 		},
-		.PrevReportINBuffer = prevGenericHIDReportBuf,
-		.PrevReportINBufferSize = sizeof(prevGenericHIDReportBuf),
+		.PrevReportINBuffer = &prevGenericReport,
+		.PrevReportINBufferSize = sizeof(prevGenericReport)
 	}
 };
 
@@ -65,8 +69,22 @@ USB_ClassInfo_HID_Device_t nkroHIDIface = {
 			.Size = NKRO_EPSIZE,
 			.Banks = 1,
 		},
-		.PrevReportINBuffer = prevNKROHIDReportBuf,
-		.PrevReportINBufferSize = sizeof(prevNKROHIDReportBuf),
+		.PrevReportINBuffer = NULL,
+		.PrevReportINBufferSize = sizeof(NKROReport)
+	}
+};
+
+USB_ClassInfo_HID_Device_t extrakeyHIDIface = {
+	.Config = {
+		.InterfaceNumber = EXTRAKEY_INTERFACE,
+		.ReportINEndpoint = {
+			.Address = EXTRAKEY_IN_EPADDR,
+			.Size = EXTRAKEY_EPSIZE,
+			.Banks = 1,
+		},
+		.PrevReportINBuffer = NULL,
+		.PrevReportINBufferSize = MAX(sizeof(ExtrakeySystemReport),
+					      sizeof(ExtrakeyConsumerReport))
 	}
 };
 
@@ -86,7 +104,16 @@ EVENT_USB_Device_ConfigurationChanged(void)
 	HID_Device_ConfigureEndpoints(&keyboardHIDIface);
 	HID_Device_ConfigureEndpoints(&genericHIDIface);
 	HID_Device_ConfigureEndpoints(&nkroHIDIface);
+	HID_Device_ConfigureEndpoints(&extrakeyHIDIface);
 	USB_Device_EnableSOFEvents();
+}
+void
+EVENT_USB_Device_Reset(void)
+{
+	/* hopefully OS does this reset this after it has booted, which should
+	 * drop the keyboard back into NKRO mode
+	 */
+	keyboardHIDIface.State.UsingReportProtocol = true;
 }
 void
 EVENT_USB_Device_ControlRequest(void)
@@ -94,6 +121,7 @@ EVENT_USB_Device_ControlRequest(void)
 	HID_Device_ProcessControlRequest(&keyboardHIDIface);
 	HID_Device_ProcessControlRequest(&genericHIDIface);
 	HID_Device_ProcessControlRequest(&nkroHIDIface);
+	HID_Device_ProcessControlRequest(&extrakeyHIDIface);
 }
 void
 EVENT_USB_Device_StartOfFrame(void)
@@ -101,8 +129,18 @@ EVENT_USB_Device_StartOfFrame(void)
 	HID_Device_MillisecondElapsed(&keyboardHIDIface);
 	HID_Device_MillisecondElapsed(&genericHIDIface);
 	HID_Device_MillisecondElapsed(&nkroHIDIface);
+	HID_Device_MillisecondElapsed(&extrakeyHIDIface);
 
 	expMSTick();
+}
+
+/*
+ * true if standard keyboard interface is set to "report protocol"... hopefully
+ */
+static bool
+usingNKROReport(void)
+{
+	return keyboardHIDIface.State.UsingReportProtocol;
 }
 
 /*
@@ -115,22 +153,62 @@ CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t *const hidIfInf,
 				    void *reportData,
 				    uint16_t *const reportSize)
 {
-	if (hidIfInf == &keyboardHIDIface) {
+	if (hidIfInf == &keyboardHIDIface && updateKeyboardReport) {
+		updateKeyboardReport = false;
+
+		if (usingNKROReport())
+			return false;
+
 		kbdFillReport(reportData);
-
 		*reportSize = sizeof(USB_KeyboardReport_Data_t);
-		return false;
-	} else if (hidIfInf == &genericHIDIface) {
-		diagFillReport(reportData);
 
+		return true;
+	} else if (hidIfInf == &genericHIDIface) {
+		diagFillReport(reportData, usingNKROReport());
 		*reportSize = GENERIC_REPORT_SIZE;
+
 		return false;
-	} else {
-		kbdFillNKROReport(reportData,
-				  hidIfInf->Config.PrevReportINBuffer);
+	} else if (hidIfInf == &nkroHIDIface && updateNKROReport) {
+		updateNKROReport = false;
+
+		if (!usingNKROReport())
+			return false;
+
+		kbdFillNKROReport(reportData);
 		*reportSize = sizeof(NKROReport);
-		return false;
+
+		return true;
+	} else if (hidIfInf == &extrakeyHIDIface) {
+		static uint8_t currReportID = EXTRAKEY_REPORTID_SYSTEM;
+		if (*reportID)
+			currReportID = *reportID;
+		else
+			*reportID = currReportID;
+
+		if (currReportID == EXTRAKEY_REPORTID_SYSTEM &&
+		    updateSystemReport) {
+			updateSystemReport = false;
+
+			bool changed = kbdFillSystemReport(reportData);
+			*reportSize = sizeof(ExtrakeySystemReport);
+
+			currReportID = EXTRAKEY_REPORTID_CONSUMER;
+
+			return changed;
+		} else if (currReportID == EXTRAKEY_REPORTID_CONSUMER &&
+			   updateConsumerReport) {
+			updateConsumerReport = false;
+
+			bool changed = kbdFillConsumerReport(reportData);
+			*reportSize = sizeof(ExtrakeyConsumerReport);
+
+			currReportID = EXTRAKEY_REPORTID_SYSTEM;
+
+			return changed;
+		}
 	}
+
+	return false;
 }
 
 /*
@@ -143,12 +221,15 @@ CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t *const hidIfInf,
 				     const void    *reportData,
 				     const uint16_t reportSize)
 {
-	if (hidIfInf == &keyboardHIDIface)
-		kbdReceiveReport(reportData);
-	else if (hidIfInf == &genericHIDIface)
+	if (hidIfInf == &keyboardHIDIface) {
+		if (!usingNKROReport())
+			kbdReceiveReport(reportData);
+	} else if (hidIfInf == &genericHIDIface) {
 		diagReceiveReport(reportData);
-	else
-		kbdReceiveNKROReport(reportData);
+	} else if (hidIfInf == &nkroHIDIface) {
+		if (usingNKROReport())
+			kbdReceiveNKROReport(reportData);
+	}
 }
 
 /*
@@ -182,20 +263,36 @@ main(void)
 	sei();
 
 	kbdInit();
-	kbdLoadColSkips();
-
-	layersLoad();
+	scanInit();
+	layersInit();
+	macrosInit();
 	expLoad();
 
 	_delay_ms(5);
 
-	/* try loading Vref from eeprom; if set to 0xffff, run calibration */
+	scanEnable();
+
+	/* try loading vref from eeprom; if set to 0xffff, run calibration */
 	vrefLoad();
 	if (vrefGet() == 0xffff)
 		kbdCalibrate();
 
 	for (;;) {
-		kbdScan();
+		/* try to keep updates synchronous; we don't want to update
+		 * bitmap if we haven't sent the last report yet.
+		 */
+		if (( usingNKROReport() && !updateNKROReport) ||
+		    (!usingNKROReport() && !updateKeyboardReport)) {
+			bool scanChanged = kbdUpdateSCBmp();
+			bool expChanged  = expProcessScan(scanChanged);
+			if (scanChanged || expChanged) {
+				updateKeyboardReport = true;
+				updateNKROReport     = true;
+				updateSystemReport   = true;
+				updateConsumerReport = true;
+			}
+			layersProcessScan();
+		}
 
 		if (USB_DeviceState == DEVICE_STATE_Unattached ||
 		    USB_DeviceState == DEVICE_STATE_Suspended)
@@ -205,6 +302,7 @@ main(void)
 		HID_Device_USBTask(&keyboardHIDIface);
 		HID_Device_USBTask(&genericHIDIface);
 		HID_Device_USBTask(&nkroHIDIface);
+		HID_Device_USBTask(&extrakeyHIDIface);
 		USB_USBTask();
 	}
 }

@@ -29,9 +29,11 @@ class NonFocusedSpinBox:
     Q_OBJECT
 
     public:
-        NonFocusedSpinBox(void);
+        NonFocusedSpinBox(const bool &kbdFocusEnabled);
 
     protected:
+        const bool &kbdFocusEnabled;
+
         virtual void focusInEvent(QFocusEvent *event);
         virtual void focusOutEvent(QFocusEvent *event);
         virtual void keyPressEvent(QKeyEvent *event);
@@ -45,9 +47,11 @@ class NonFocusedComboBox:
     Q_OBJECT
 
     public:
-        NonFocusedComboBox(void);
+        NonFocusedComboBox(const bool &kbdFocusEnabled);
 
     protected:
+        const bool &kbdFocusEnabled;
+
         virtual void focusInEvent(QFocusEvent *event);
         virtual void focusOutEvent(QFocusEvent *event);
         virtual void keyPressEvent(QKeyEvent *event);

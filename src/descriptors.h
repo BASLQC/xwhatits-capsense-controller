@@ -43,21 +43,32 @@ typedef struct {
 	USB_Descriptor_Interface_t NKROInterface;
 	USB_HID_Descriptor_HID_t NKROHID;
 	USB_Descriptor_Endpoint_t NKROInEndpoint;
+
+	/* extrakey interface */
+	USB_Descriptor_Interface_t ExtrakeyInterface;
+	USB_HID_Descriptor_HID_t ExtrakeyHID;
+	USB_Descriptor_Endpoint_t ExtrakeyInEndpoint;
 } USB_Descriptor_Configuration_t;
 
 #define KEYBOARD_IN_EPADDR (ENDPOINT_DIR_IN | 1)
 #define NKRO_IN_EPADDR     (ENDPOINT_DIR_IN | 2)
 #define GENERIC_IN_EPADDR  (ENDPOINT_DIR_IN | 3)
+#define EXTRAKEY_IN_EPADDR (ENDPOINT_DIR_IN | 4)
 
 #define KEYBOARD_INTERFACE 0x00
 #define GENERIC_INTERFACE  0x01
 #define NKRO_INTERFACE     0x02
+#define EXTRAKEY_INTERFACE 0x03
 
 #define KBD_EPSIZE      8
-#define NKRO_EPSIZE    25
+#define NKRO_EPSIZE    32
 #define GENERIC_EPSIZE  8
+#define EXTRAKEY_EPSIZE 8
 
 #define GENERIC_REPORT_SIZE 8
+
+#define EXTRAKEY_REPORTID_SYSTEM   1
+#define EXTRAKEY_REPORTID_CONSUMER 2
 
 uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue,
 				    const uint8_t wIndex,

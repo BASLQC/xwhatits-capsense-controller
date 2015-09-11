@@ -1,5 +1,5 @@
 /******************************************************************************
-  Copyright 2014 Tom Cornall
+  Copyright 2014 Tom Wong-Cornall
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,6 +46,14 @@
 #define EEP_EXP_VAL2            (EEP_EXP_VAL1 + 1)
 
 #define EEP_KBD_COL_SKIPS	(EEP_EXP_VAL2 + 1)
-#define EEP_KBD_COL_SKIPS_BND	(EEP_KBD_COL_SKIPS + sizeof(kbdColSkips))
+#define EEP_KBD_COL_SKIPS_BND	(EEP_KBD_COL_SKIPS + 3)
+
+#define EEP_MACROS		639
+#define EEP_MACROS_BND		1024
+
+/* hopefully some spare space inbetween... */
+#if (EEP_KBD_COL_SKIPS_BND >= EEP_MACROS)
+#	error collision between dynamic EEPROM mappings and macros
+#endif
 
 #endif

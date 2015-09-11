@@ -19,18 +19,9 @@
 static uint8_t msCtr;
 static uint8_t solenoidQueue;
 
-/* 0-bit = reported lock state (through LED report)
- * 1-bit = last switch state
- * 2-bit = have run logic at least once since reset
- */
-static uint8_t lockState;
-
-uint8_t	       expMode;
-uint8_t	       expVal1;	// meaning of val 1 & 2 is depending on mode
-uint8_t	       expVal2;
-
-static uint8_t switchLockLogic(uint8_t switchState);
-static void    handleFnLockSelect(uint8_t switchState);
+uint8_t expMode;
+uint8_t expVal1; // meaning of val 1 & 2 is depending on mode
+uint8_t expVal2;
 
 /*
  *
@@ -49,7 +40,6 @@ expClear(void)
 
 	msCtr = 0;
 	solenoidQueue = 0;
-	lockState &= ~(1 << 2); // reset `logic run flag' (see above)
 
 	/* LEDs on the PC-AT seem to have pull-ups; so re-enable outputs so
 	 * that the LEDs don't stay on and waste power when this function is
@@ -122,10 +112,13 @@ expMSTick(void)
 	case expModeSolenoidPlusNCFn3LockSwitch:
 		if (msCtr == expVal1)
 			PORTB &= ~(1 << PB6); // turn off solenoid
-		else if (solenoidQueue > 0 && msCtr >= expVal2) {
+		else if (msCtr == expVal2)
+			scanResume();
+		else if (solenoidQueue > 0 && msCtr > expVal2) {
 			msCtr = 0;
 			solenoidQueue--;
 			PORTB |= (1 << PB6);  // turn on solenoid
+			scanPause();
 		}
 		break;
 	default:
@@ -137,201 +130,196 @@ expMSTick(void)
  *
  */
 void
-expKeyPositiveEdge(void)
+expSetMode(uint8_t mode, uint8_t val1, uint8_t val2)
 {
-	solenoidQueue++;
+	expMode = mode;
+	expVal1 = val1;
+	expVal2 = val2;
 }
 
 /*
  *
  */
-uint8_t
-switchLockLogic(uint8_t switchState)
+static void
+handleFnLockSelect(bool switchState, uint8_t layer)
 {
-	/* run on switch edges, or if we haven't run since reset */
-	if ((!switchState &&  (lockState & (1 << 1))) ||
-	    ( switchState && !(lockState & (1 << 1))) ||
-	    (!(lockState & (1 << 2)))) {
-		lockState |= (1 << 2);
-		if (switchState)
-			lockState |=  (1 << 1);
-		else
-			lockState &= ~(1 << 1);
-
-		if (switchState && !(lockState & (1 << 0)))
-			return 1;
-		else if (!switchState && (lockState & (1 << 0)))
-			return 1;
-	}
-
-	return 0;
-}
-
-void
-handleFnLockSelect(uint8_t switchState)
-{
-	if (switchState) {
-		switch (expMode) {
-		case expModeSolenoidPlusNOFn1LockSwitch:
-		case expModeSolenoidPlusNCFn1LockSwitch:
-			layersDefaultLayer = 1;
-			break;
-		case expModeSolenoidPlusNOFn2LockSwitch:
-		case expModeSolenoidPlusNCFn2LockSwitch:
-			layersDefaultLayer = 2;
-			break;
-		case expModeSolenoidPlusNOFn3LockSwitch:
-		case expModeSolenoidPlusNCFn3LockSwitch:
-			layersDefaultLayer = 3;
-			break;
-		}
-	} else
+	if (switchState)
+		layersDefaultLayer = layer;
+	else
 		layersDefaultLayer = 0;
 }
 
 /*
  *
  */
-void
-expPostProcessStdKbdReport(USB_KeyboardReport_Data_t *report,
-			   uint8_t usedKeyCodes)
+static void
+handleShiftLockSelect(bool switchState)
 {
-	switch (expMode) {
-	case expModeSolenoidPlusNOCapsLockSwitch:
-		if (switchLockLogic(!(PINB & (1 << PB5))))
-			report->KeyCode[usedKeyCodes] =
-			   HID_KEYBOARD_SC_CAPS_LOCK;
-		break;
-	case expModeSolenoidPlusNCCapsLockSwitch:
-		if (switchLockLogic(PINB & (1 << PB5)))
-			report->KeyCode[usedKeyCodes] =
-			   HID_KEYBOARD_SC_CAPS_LOCK;
-		break;
-	case expModeSolenoidPlusNONumLockSwitch:
-		if (switchLockLogic(!(PINB & (1 << PB5))))
-			report->KeyCode[usedKeyCodes] =
-			   HID_KEYBOARD_SC_NUM_LOCK;
-		break;
-	case expModeSolenoidPlusNCNumLockSwitch:
-		if (switchLockLogic(PINB & (1 << PB5)))
-			report->KeyCode[usedKeyCodes] =
-			   HID_KEYBOARD_SC_NUM_LOCK;
-		break;
-	case expModeSolenoidPlusNOShiftLockSwitch:
-		if (!(PINB & (1 << PB5)))
-			report->Modifier += HID_KEYBOARD_MODIFIER_LEFTSHIFT;
-		break;
-	case expModeSolenoidPlusNCShiftLockSwitch:
-		if (PINB & (1 << PB5))
-			report->Modifier += HID_KEYBOARD_MODIFIER_LEFTSHIFT;
-		break;
-	case expModeSolenoidPlusNOFn1LockSwitch:
-	case expModeSolenoidPlusNOFn2LockSwitch:
-	case expModeSolenoidPlusNOFn3LockSwitch:
-		handleFnLockSelect(!(PINB & (1 << PB5)));
-		break;
-	case expModeSolenoidPlusNCFn1LockSwitch:
-	case expModeSolenoidPlusNCFn2LockSwitch:
-	case expModeSolenoidPlusNCFn3LockSwitch:
-		handleFnLockSelect(PINB & (1 << PB5));
-		break;
-	default:
-		break;
+	if (switchState)
+		kbdSCBmp[HID_KEYBOARD_SC_LEFT_SHIFT / 8] |=
+		   (1 << (HID_KEYBOARD_SC_LEFT_SHIFT % 8));
+}
+
+/*
+ * This is a bit hard, as we need to look at what the OS is telling us via the
+ * keyboard lock LED report, and toggle the corresponding lock key to make it
+ * switch state. There's a bit of a lag between getting the new LED states too,
+ * so use a counter to have a bit of a timeout before trying again.
+ */
+static bool
+handleLEDKeyLockSelect(bool switchState, uint8_t ledMask, uint8_t scancode)
+{
+	static uint8_t timeout;
+
+	/* don't do anything if we don't need to */
+	if ((!switchState && !(kbdLEDs & ledMask)) ||
+	    ( switchState &&  (kbdLEDs & ledMask))) {
+		timeout = 0;
+		return false;
+	}
+
+	if (timeout++ == 0) {
+		kbdSCBmp[scancode / 8] |=  (1 << (scancode % 8));
+		return true;
+	}
+
+	return false;
+}
+
+/*
+ * look for new keypress edges; ignore the first four scancodes
+ * (ignored/pressed/released etc.) and the last chunk which is fn keys and
+ * mods.
+ */
+static void
+processSolenoidScancodes(void)
+{
+	for (uint8_t i = 0; i < KBD_SC_FN1 / 8; i++) {
+		uint8_t prev = kbdPrevSCBmp[i];
+		uint8_t curr = kbdSCBmp[i];
+
+		if (prev == curr)
+			continue;
+
+		/* mask to get new bits from prev -> curr */
+		curr = ((prev ^ curr) & ~prev);
+
+		if (i == 0)
+			curr &= 0xf0; // get rid of first four scancodes
+
+		/* whack the solenoid once for each set bit */
+		while (curr) {
+			curr &= (curr - 1);
+			solenoidQueue++;
+		}
 	}
 }
 
 /*
  *
  */
-void
-expPostProcessNKROKbdReport(NKROReport *report)
+static void
+setLockLEDs(void)
 {
-	switch (expMode) {
-	case expModeSolenoidPlusNOCapsLockSwitch:
-		if (switchLockLogic(!(PINB & (1 << PB5))))
-			report->codeBmp[HID_KEYBOARD_SC_CAPS_LOCK / 8] |=
-			   (1 << (HID_KEYBOARD_SC_CAPS_LOCK % 8));
-		break;
-	case expModeSolenoidPlusNCCapsLockSwitch:
-		if (switchLockLogic(PINB & (1 << PB5)))
-			report->codeBmp[HID_KEYBOARD_SC_CAPS_LOCK / 8] |=
-			   (1 << (HID_KEYBOARD_SC_CAPS_LOCK % 8));
-		break;
-	case expModeSolenoidPlusNONumLockSwitch:
-		if (switchLockLogic(!(PINB & (1 << PB5))))
-			report->codeBmp[HID_KEYBOARD_SC_NUM_LOCK / 8] |=
-			   (1 << (HID_KEYBOARD_SC_NUM_LOCK % 8));
-		break;
-	case expModeSolenoidPlusNCNumLockSwitch:
-		if (switchLockLogic(PINB & (1 << PB5)))
-			report->codeBmp[HID_KEYBOARD_SC_NUM_LOCK / 8] |=
-			   (1 << (HID_KEYBOARD_SC_NUM_LOCK % 8));
-		break;
-	case expModeSolenoidPlusNOShiftLockSwitch:
-		if (!(PINB & (1 << PB5)))
-			report->modifiers |=
-			   (1 << (HID_KEYBOARD_SC_LEFT_SHIFT - 0xe0));
-		break;
-	case expModeSolenoidPlusNCShiftLockSwitch:
-		if (PINB & (1 << PB5))
-			report->modifiers |=
-			   (1 << (HID_KEYBOARD_SC_LEFT_SHIFT - 0xe0));
-		break;
-	case expModeSolenoidPlusNOFn1LockSwitch:
-	case expModeSolenoidPlusNOFn2LockSwitch:
-	case expModeSolenoidPlusNOFn3LockSwitch:
-		handleFnLockSelect(!(PINB & (1 << PB5)));
-		break;
-	case expModeSolenoidPlusNCFn1LockSwitch:
-	case expModeSolenoidPlusNCFn2LockSwitch:
-	case expModeSolenoidPlusNCFn3LockSwitch:
-		handleFnLockSelect(PINB & (1 << PB5));
-		break;
-	default:
-		break;
-	}
+	if (kbdLEDs & HID_KEYBOARD_LED_NUMLOCK)
+		PORTB |=  (1 << PB5);
+	else
+		PORTB &= ~(1 << PB5);
+
+	if (kbdLEDs & HID_KEYBOARD_LED_CAPSLOCK)
+		PORTB |=  (1 << PB6);
+	else
+		PORTB &= ~(1 << PB6);
+
+	if (kbdLEDs & HID_KEYBOARD_LED_SCROLLLOCK)
+		PORTB |=  (1 << PB4);
+	else
+		PORTB &= ~(1 << PB4);
 }
 
 /*
  *
  */
-void
-expSetLockLEDs(uint8_t leds)
+static bool
+switchIsSet(void)
 {
+	return !(PINB & (1 << PB5));
+}
+
+/*
+ * returns true if it caused a change in the scan
+ */
+bool
+expProcessScan(bool scanChanged)
+{
+	if (scanChanged) {
+		switch (expMode) {
+		case expModeSolenoid:
+		case expModeSolenoidPlusNOCapsLockSwitch:
+		case expModeSolenoidPlusNCCapsLockSwitch:
+		case expModeSolenoidPlusNONumLockSwitch:
+		case expModeSolenoidPlusNCNumLockSwitch:
+		case expModeSolenoidPlusNOShiftLockSwitch:
+		case expModeSolenoidPlusNCShiftLockSwitch:
+		case expModeSolenoidPlusNOFn1LockSwitch:
+		case expModeSolenoidPlusNCFn1LockSwitch:
+		case expModeSolenoidPlusNOFn2LockSwitch:
+		case expModeSolenoidPlusNCFn2LockSwitch:
+		case expModeSolenoidPlusNOFn3LockSwitch:
+		case expModeSolenoidPlusNCFn3LockSwitch:
+			processSolenoidScancodes();
+			break;
+		}
+	}
+
 	switch (expMode) {
 	case expModeLockLEDs:
-		if (leds & HID_KEYBOARD_LED_NUMLOCK)
-			PORTB |=  (1 << PB5);
-		else
-			PORTB &= ~(1 << PB5);
-
-		if (leds & HID_KEYBOARD_LED_CAPSLOCK)
-			PORTB |=  (1 << PB6);
-		else
-			PORTB &= ~(1 << PB6);
-
-		if (leds & HID_KEYBOARD_LED_SCROLLLOCK)
-			PORTB |=  (1 << PB4);
-		else
-			PORTB &= ~(1 << PB4);
+		setLockLEDs();
 		break;
 	case expModeSolenoidPlusNOCapsLockSwitch:
+		return handleLEDKeyLockSelect(switchIsSet(),
+					      HID_KEYBOARD_LED_CAPSLOCK,
+					      HID_KEYBOARD_SC_CAPS_LOCK);
 	case expModeSolenoidPlusNCCapsLockSwitch:
-		if (leds & HID_KEYBOARD_LED_CAPSLOCK)
-			lockState |=  (1 << 0);
-		else
-			lockState &= ~(1 << 0);
-		break;
+		return handleLEDKeyLockSelect(!switchIsSet(),
+					      HID_KEYBOARD_LED_CAPSLOCK,
+					      HID_KEYBOARD_SC_CAPS_LOCK);
 	case expModeSolenoidPlusNONumLockSwitch:
+		return handleLEDKeyLockSelect(switchIsSet(),
+					      HID_KEYBOARD_LED_NUMLOCK,
+					      HID_KEYBOARD_SC_NUM_LOCK);
 	case expModeSolenoidPlusNCNumLockSwitch:
-		if (leds & HID_KEYBOARD_LED_NUMLOCK)
-			lockState |=  (1 << 0);
-		else
-			lockState &= ~(1 << 0);
+		return handleLEDKeyLockSelect(!switchIsSet(),
+					      HID_KEYBOARD_LED_NUMLOCK,
+					      HID_KEYBOARD_SC_NUM_LOCK);
 		break;
-	default:
+	case expModeSolenoidPlusNOShiftLockSwitch:
+		handleShiftLockSelect(switchIsSet());
+		break;
+	case expModeSolenoidPlusNCShiftLockSwitch:
+		handleShiftLockSelect(!switchIsSet());
+		break;
+	case expModeSolenoidPlusNOFn1LockSwitch:
+		handleFnLockSelect(switchIsSet(), 1);
+		break;
+	case expModeSolenoidPlusNCFn1LockSwitch:
+		handleFnLockSelect(!switchIsSet(), 1);
+		break;
+	case expModeSolenoidPlusNOFn2LockSwitch:
+		handleFnLockSelect(switchIsSet(), 2);
+		break;
+	case expModeSolenoidPlusNCFn2LockSwitch:
+		handleFnLockSelect(!switchIsSet(), 2);
+		break;
+	case expModeSolenoidPlusNOFn3LockSwitch:
+		handleFnLockSelect(switchIsSet(), 3);
+		break;
+	case expModeSolenoidPlusNCFn3LockSwitch:
+		handleFnLockSelect(!switchIsSet(), 3);
 		break;
 	}
+
+	return false;
 }
 
 /*
@@ -351,10 +339,11 @@ expStore(void)
 void
 expLoad(void)
 {
-	expMode = eeprom_read_byte((uint8_t *)EEP_EXP_MODE);
-	if (expMode >= expModeEND)
-		expMode = expModeDisabled;
+	uint8_t mode = eeprom_read_byte((uint8_t *)EEP_EXP_MODE);
+	if (mode >= expModeEND)
+		mode = expModeDisabled;
 
-	expVal1 = eeprom_read_byte((uint8_t *)EEP_EXP_VAL1);
-	expVal2 = eeprom_read_byte((uint8_t *)EEP_EXP_VAL2);
+	expSetMode(mode,
+		   eeprom_read_byte((uint8_t *)EEP_EXP_VAL1),
+		   eeprom_read_byte((uint8_t *)EEP_EXP_VAL2));
 }

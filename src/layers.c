@@ -1,5 +1,5 @@
 /******************************************************************************
-  Copyright 2014 Tom Cornall
+  Copyright 2014 Tom Wong-Cornall
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,47 +16,75 @@
  ******************************************************************************/
 #include "layers.h"
 
-uint8_t layerMatrix0[KBD_COLS][KBD_ROWS];
-uint8_t layerMatrix1[KBD_COLS][KBD_ROWS];
-uint8_t layerMatrix2[KBD_COLS][KBD_ROWS];
-uint8_t layerMatrix3[KBD_COLS][KBD_ROWS];
-uint8_t layerConditions[LAYERS_NUM_CONDITIONS];
+uint8_t layersMatrix[KBD_COLS][KBD_ROWS];
+uint8_t layersConditions[LAYERS_NUM_CONDITIONS];
 uint8_t layersDefaultLayer;
+uint8_t layersSelectedLayer;
 
-static uint8_t layersSelectedLayer;
-
-static void layersLoadConditions(void);
-static void layersStoreConditions(void);
-static void layersLoadMatrix(const uint8_t *addr,
-			     uint8_t mtx[KBD_COLS][KBD_ROWS]);
-static void layersStoreMatrix(uint8_t *addr, uint8_t mtx[KBD_COLS][KBD_ROWS]);
+static void     layersLoadConditions(void);
+static uint8_t *layersEEPAddr(uint8_t layer);
 
 /*
  *
  */
 void
-layersLoad(void)
+layersInit(void)
 {
-	layersSelectedLayer = 0;
-
+	layersDefaultLayer = 0;
+	layersLoad(0);
 	layersLoadConditions();
-	layersLoadMatrix((const uint8_t *)EEP_LAYER_MATRIX_0, layerMatrix0);
-	layersLoadMatrix((const uint8_t *)EEP_LAYER_MATRIX_1, layerMatrix1);
-	layersLoadMatrix((const uint8_t *)EEP_LAYER_MATRIX_2, layerMatrix2);
-	layersLoadMatrix((const uint8_t *)EEP_LAYER_MATRIX_3, layerMatrix3);
+}
+
+/*
+ *
+ */
+uint8_t *
+layersEEPAddr(uint8_t layer)
+{
+	switch (layer) {
+	case 0: return (uint8_t *)EEP_LAYER_MATRIX_0;
+	case 1: return (uint8_t *)EEP_LAYER_MATRIX_1;
+	case 2: return (uint8_t *)EEP_LAYER_MATRIX_2;
+	case 3: return (uint8_t *)EEP_LAYER_MATRIX_3;
+	}
+
+	return (uint8_t *)EEP_LAYER_MATRIX_0;
 }
 
 /*
  *
  */
 void
-layersStore(void)
+layersLoad(uint8_t layer)
 {
-	layersStoreConditions();
-	layersStoreMatrix((uint8_t *)EEP_LAYER_MATRIX_0, layerMatrix0);
-	layersStoreMatrix((uint8_t *)EEP_LAYER_MATRIX_1, layerMatrix1);
-	layersStoreMatrix((uint8_t *)EEP_LAYER_MATRIX_2, layerMatrix2);
-	layersStoreMatrix((uint8_t *)EEP_LAYER_MATRIX_3, layerMatrix3);
+	const uint8_t *addr = layersEEPAddr(layer);
+
+	for (uint8_t col = 0; col < KBD_COLS; col++) {
+		for (uint8_t row = 0; row < KBD_ROWS; row++) {
+			uint8_t sc = eeprom_read_byte(addr++);
+			if (sc == 0xff)
+				sc = KBD_SC_IGNORED;
+			layersMatrix[col][row] = sc;
+		}
+	}
+
+	layersSelectedLayer = layer;
+}
+
+/*
+ *
+ */
+void
+layersSetScancode(uint8_t layer, uint8_t col, uint8_t row, uint8_t sc)
+{
+	uint8_t *addr = layersEEPAddr(layer);
+
+	if (layer == layersSelectedLayer)
+		layersMatrix[col][row] = sc;
+
+	addr += (col * KBD_ROWS) + row;
+
+	eeprom_update_byte(addr, sc);
 }
 
 /*
@@ -65,9 +93,9 @@ layersStore(void)
 void
 layersLoadConditions(void)
 {
-	eeprom_read_block(layerConditions,
+	eeprom_read_block(layersConditions,
 			  (const void *)EEP_LAYER_CNDS,
-			  sizeof(layerConditions));
+			  sizeof(layersConditions));
 }
 
 /*
@@ -76,76 +104,50 @@ layersLoadConditions(void)
 void
 layersStoreConditions(void)
 {
-	eeprom_update_block(layerConditions,
+	eeprom_update_block(layersConditions,
 			    (void *)EEP_LAYER_CNDS,
-			    sizeof(layerConditions));
+			    sizeof(layersConditions));
 }
 
 /*
  *
  */
 void
-layersLoadMatrix(const uint8_t *addr, uint8_t mtx[KBD_COLS][KBD_ROWS])
+layersSetCondition(uint8_t idx, uint8_t val)
 {
-	for (uint8_t col = 0; col < KBD_COLS; col++) {
-		for (uint8_t row = 0; row < KBD_ROWS; row++) {
-			uint8_t sc = eeprom_read_byte(addr++);
-			if (sc == 0xff)
-				sc = KBD_SC_IGNORED;
-			mtx[col][row] = sc;
-		}
-	}
+	layersConditions[idx] = val;
+	eeprom_update_byte((uint8_t *)EEP_LAYER_CNDS + idx, val);
 }
 
 /*
- * Stored as one contiguous block, column-major order
+ * check for Fn or Select keys in order to switch layer
  */
 void
-layersStoreMatrix(uint8_t *addr, uint8_t mtx[KBD_COLS][KBD_ROWS])
+layersProcessScan(void)
 {
-	for (uint8_t col = 0; col < KBD_COLS; col++)
-		for (uint8_t row = 0; row < KBD_ROWS; row++)
-			eeprom_update_byte(addr++, mtx[col][row]);
-}
+	/* first look for select keycodes to change default layer */
+	if (kbdSCBmp[KBD_SC_SELECT_0 / 8] & (1 << (KBD_SC_SELECT_0 % 8)))
+		layersDefaultLayer = 0;
+	else if (kbdSCBmp[KBD_SC_SELECT_1 / 8] & (1 << (KBD_SC_SELECT_1 % 8)))
+		layersDefaultLayer = 1;
+	else if (kbdSCBmp[KBD_SC_SELECT_2 / 8] & (1 << (KBD_SC_SELECT_2 % 8)))
+		layersDefaultLayer = 2;
+	else if (kbdSCBmp[KBD_SC_SELECT_3 / 8] & (1 << (KBD_SC_SELECT_3 % 8)))
+		layersDefaultLayer = 3;
 
-/*
- * Processes currently-pressed keys, if any function keys are pressed then
- * returns appropriate layer.
- */
-uint8_t
-layersWhichLayer(void)
-{
-	uint8_t fnKeys = 0;
 	uint8_t result = layersDefaultLayer;
-	uint8_t (*mtx)[KBD_COLS][KBD_ROWS] = layersMatrix(layersSelectedLayer);
 
-	for (uint8_t col = 0; col < KBD_COLS; col++) {
-		for (uint8_t row = 0; row < KBD_ROWS; row++) {
-			if (kbdBitmap[KBD_BMP_BYTE(col)] &
-			    KBD_BMP_MASK(col, row)) {
-				switch ((*mtx)[col][row]) {
-				case KBD_SC_FN1:
-					fnKeys |= (1 << 0);
-					break;
-				case KBD_SC_FN2:
-					fnKeys |= (1 << 1);
-					break;
-				case KBD_SC_FN3:
-					fnKeys |= (1 << 2);
-					break;
-				}
-			}
-		}
-	}
-
+	/* we can rely on fn keys scancodes being byte-aligned, but we only
+	 * want the lower three bits
+	 */
+	uint8_t fnKeys = (kbdSCBmp[KBD_SC_FN1 / 8] & 0x7);
 	if (fnKeys != 0) {
 		/* condition is in high nibble, resulting layer is in low */
 		for (uint8_t i = 0; i < LAYERS_NUM_CONDITIONS; i++)
-			if (layerConditions[i] >> 4 == fnKeys)
-				result = layerConditions[i] & 0xf;
+			if (layersConditions[i] >> 4 == fnKeys)
+				result = layersConditions[i] & 0xf;
 	}
 
-	layersSelectedLayer = result;
-
-	return result;
+	if (result != layersSelectedLayer)
+		layersLoad(result);
 }

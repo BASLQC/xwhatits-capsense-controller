@@ -1,5 +1,5 @@
 /******************************************************************************
-  Copyright 2014 Tom Cornall
+  Copyright 2014 Tom Wong-Cornall
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,15 @@
 
 typedef struct {
 	uint8_t modifiers;
-	uint8_t codeBmp[24];
-} ATTR_PACKED NKROReport;
+	uint8_t codeBmp[21];
+} __attribute__((packed)) NKROReport;
+
+typedef struct {
+	uint8_t codeBmp;
+} __attribute__((packed)) ExtrakeySystemReport;
+
+typedef struct {
+	uint8_t codeBmp[3];
+} __attribute__((packed)) ExtrakeyConsumerReport;
 
 #endif

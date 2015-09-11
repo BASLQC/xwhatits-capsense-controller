@@ -1,5 +1,5 @@
 /******************************************************************************
-  Copyright 2014 Tom Cornall
+  Copyright 2014 Tom Wong-Cornall
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,11 +16,10 @@
  ******************************************************************************/
 #include "kbd.h"
 
-int8_t	kbd[KBD_COLS][KBD_ROWS];
-uint8_t	kbdBitmap[(KBD_ROWS * KBD_COLS + 8 - 1) / 8];
-uint8_t	kbdColSkips[3]; // enough for 24 columns, waste one byte with 16
-
-static void kbdScanColumn(uint8_t col);
+uint8_t kbdSCBmp[29];   // 29 bytes allows up to 0xe7 (Right GUI)
+uint8_t kbdPrevSCBmp[sizeof(kbdSCBmp)];
+uint8_t kbdLEDs;
+uint8_t kbdColSkips[3]; // enough for 24 columns, waste one byte with 16
 
 /*
  *
@@ -28,9 +27,7 @@ static void kbdScanColumn(uint8_t col);
 void
 kbdInit(void)
 {
-	memset(kbd, 0, sizeof(kbd[0][0]) * KBD_COLS * KBD_ROWS);
-	memset(kbdBitmap, 0, sizeof(kbdBitmap));
-	layersDefaultLayer = 0;
+	kbdLoadColSkips();
 }
 
 /*
@@ -41,72 +38,112 @@ kbdCalibrate(void)
 {
 	uint16_t rMin, rMax, val = 0;
 	uint16_t loPoint, hiPoint;
+	uint8_t oldSelectedLayer = layersSelectedLayer;
 
 	uint8_t numLO = 0;
 	uint8_t numHI = 0;
 
+	layersLoad(0);
+
+	/* count totals for HI/LO keys considered for calibration; we include
+	 * standard scancodes (i.e. not just KBD_SC_CAL_LO keys) in the LO keys
+	 * as it gives a better picture (so long as you aren't holding any keys
+	 * while you plug the keyboard in)
+	 */
 	for (uint8_t col = 0; col < KBD_COLS; col++) {
+		if (kbdColSkips[col / 8] & (1 << (col % 8)))
+			continue;
+
 		for (uint8_t row = 0; row < KBD_ROWS; row++) {
-			switch (layerMatrix0[col][row]) {
+			switch (layersMatrix[col][row]) {
+			case KBD_SC_IGNORED:
+				break;
 			case KBD_SC_CAL_HI:
 				numHI++;
 				break;
-			case KBD_SC_CAL_LO:
+			default:
 				numLO++;
 				break;
 			}
 		}
 	}
 
-	/* first look point where all LO keys first start staying LO */
+	/* first look for point where all LO keys first start staying LO; will
+	 * be the higher number for active-low keyboards and the lower number
+	 * for active-high keyboards
+	 */
 	rMin = 0;
 	rMax = VREF_MAX;
 	while (rMax - rMin > 1) {
 		val = ((rMax - rMin) / 2) + rMin;
 		vrefSet(val);
-		_delay_us(100); // wait for DAC to settle
 
-		for (uint8_t i = 0; i < 32; i++)
-			kbdScan();
+		/* wait for a few scans */
+		scanTick = 0;
+		while (scanTick < 20)
+			;
 
-		uint8_t pressedLoKeys = 0;
-		for (uint8_t col = 0; col < KBD_COLS; col++)
-			for (uint8_t row = 0; row < KBD_ROWS; row++)
-				if (kbd[col][row] > KBD_DEBOUNCE_THRESH &&
-				    layerMatrix0[col][row] >= HID_KEYBOARD_SC_A)
-					pressedLoKeys++;
+		uint8_t releasedLoKeys = 0;
+		for (uint8_t col = 0; col < KBD_COLS; col++) {
+			if (kbdColSkips[col / 8] & (1 << (col % 8)))
+				continue;
+
+			for (uint8_t row = 0; row < KBD_ROWS; row++) {
+				if (scanState[col][row] < SCAN_DB_THRESH) {
+					uint8_t sc = layersMatrix[col][row];
+					if (sc != KBD_SC_IGNORED &&
+					    sc != KBD_SC_CAL_HI)
+						releasedLoKeys++;
+				}
+			}
+		}
 
 #if defined(KBD_ACTIVE_LOW)
-		if (pressedLoKeys < numLO)
-			rMin = val;
-		else
+		if (releasedLoKeys < numLO)
 			rMax = val;
+		else
+			rMin = val;
 #elif defined(KBD_ACTIVE_HIGH)
-		if (pressedLoKeys < numLO)
-			rMax = val;
-		else
+		if (releasedLoKeys < numLO)
 			rMin = val;
+		else
+			rMax = val;
 #endif
 	}
+#if defined(KBD_ACTIVE_LOW)
+	hiPoint = val;
+#elif defined(KBD_ACTIVE_HIGH)
 	loPoint = val;
+#endif
 
-	/* now look for point where all HI keys first start staying LO */
+	/* now look for point where all HI keys first start staying HI; will
+	 * be the lower number for active-low keyboards and the higher number
+	 * for active-high keyboards
+	 */
 	rMin = 0;
 	rMax = VREF_MAX;
 	while (rMax - rMin > 1) {
 		val = ((rMax - rMin) / 2) + rMin;
 		vrefSet(val);
-		_delay_us(100); // wait for DAC to settle
 
-		for (uint8_t i = 0; i < 32; i++)
-			kbdScan();
+		/* wait for a few scans */
+		scanTick = 0;
+		while (scanTick < 20)
+			;
 
 		uint8_t pressedHiKeys = 0;
-		for (uint8_t col = 0; col < KBD_COLS; col++)
-			for (uint8_t row = 0; row < KBD_ROWS; row++)
-				if (kbd[col][row] > KBD_DEBOUNCE_THRESH &&
-				    layerMatrix0[col][row] == KBD_SC_CAL_HI)
-					pressedHiKeys++;
+		for (uint8_t col = 0; col < KBD_COLS; col++) {
+			if (kbdColSkips[col / 8] & (1 << (col % 8)))
+				continue;
+
+			for (uint8_t row = 0; row < KBD_ROWS; row++) {
+				if (scanState[col][row] >= SCAN_DB_THRESH) {
+					uint8_t sc = layersMatrix[col][row];
+					if (sc == KBD_SC_CAL_HI)
+						pressedHiKeys++;
+				}
+			}
+		}
 
 #if defined(KBD_ACTIVE_LOW)
 		if (pressedHiKeys < numHI)
@@ -120,18 +157,50 @@ kbdCalibrate(void)
 			rMin = val;
 #endif
 	}
+#if defined(KBD_ACTIVE_LOW)
+	loPoint = val;
+#elif defined(KBD_ACTIVE_HIGH)
 	hiPoint = val;
+#endif
 
 	/* Set resulting value part-way between. Your random fraction for today
-	 * is seven eighths.
+	 * is one third.
 	 */
 #if defined(KBD_ACTIVE_LOW)
-	vrefSet(((loPoint - hiPoint) / 8) * 7 + hiPoint);
+	vrefSet(((hiPoint - loPoint) / 3) * 1 + loPoint);
 #elif defined(KBD_ACTIVE_HIGH)
-	vrefSet(((hiPoint - loPoint) / 8) * 7 + loPoint);
+	vrefSet(((hiPoint - loPoint) / 3) * 2 + loPoint);
 #endif
 
 	expReset();
+	layersLoad(oldSelectedLayer);
+}
+
+/*
+ * returns true if anything changed
+ */
+bool
+kbdUpdateSCBmp(void)
+{
+	for (uint8_t i = 0; i < sizeof(kbdSCBmp); i++) {
+		kbdPrevSCBmp[i] = kbdSCBmp[i];
+		kbdSCBmp[i] = 0;
+	}
+
+	for (uint8_t row = 0; row < KBD_ROWS; row++) {
+		for (uint8_t col = 0; col < KBD_COLS; col++) {
+			if (scanState[col][row] >= SCAN_DB_THRESH) {
+				uint8_t sc = layersMatrix[col][row];
+				if (sc <= 0xe7)
+					kbdSCBmp[sc / 8] |= (1 << (sc % 8));
+			}
+		}
+	}
+
+	for (uint8_t i = 0; i < sizeof(kbdSCBmp); i++)
+		if (kbdPrevSCBmp[i] != kbdSCBmp[i])
+			return true;
+	return false;
 }
 
 /*
@@ -142,135 +211,104 @@ kbdFillReport(USB_KeyboardReport_Data_t *kbdReport)
 {
 	uint8_t usedKeyCodes = 0;
 
-	uint8_t (*mtx)[KBD_COLS][KBD_ROWS] = layersMatrix(layersWhichLayer());
+	/* check for standard keys, between 0x04 (a) and 0xa4 (ExSel) */
+	for (uint8_t i = (HID_KEYBOARD_SC_A / 8);
+	     i <= (HID_KEYBOARD_SC_EXSEL / 8);
+	     i++) {
+		/* check if any keys pressed within this byte */
+		if (!kbdSCBmp[i])
+			continue;
 
-	for (uint8_t col = 0; col < KBD_COLS; col++) {
-		for (uint8_t row = 0;
-		     row < KBD_ROWS && usedKeyCodes < 6;
-		     row++) {
-			if (kbdBitmap[KBD_BMP_BYTE(col)] &
-			    KBD_BMP_MASK(col, row)) {
-				uint8_t sc = (*mtx)[col][row];
-
-				if (sc < HID_KEYBOARD_SC_A ||
-				    (sc >= KBD_SC_FN1 && sc <= KBD_SC_FN3))
-					continue;
-
-				kbdReport->KeyCode[usedKeyCodes++] = sc;
-				switch (sc) {
-				case KBD_SC_SELECT_0:
-					layersDefaultLayer = 0;
-					break;
-				case KBD_SC_SELECT_1:
-					layersDefaultLayer = 1;
-					break;
-				case KBD_SC_SELECT_2:
-					layersDefaultLayer = 2;
-					break;
-				case KBD_SC_SELECT_3:
-					layersDefaultLayer = 3;
-					break;
-				case HID_KEYBOARD_SC_LEFT_SHIFT:
-					kbdReport->Modifier +=
-					   HID_KEYBOARD_MODIFIER_LEFTSHIFT;
-					break;
-				case HID_KEYBOARD_SC_RIGHT_SHIFT:
-					kbdReport->Modifier +=
-					   HID_KEYBOARD_MODIFIER_RIGHTSHIFT;
-					break;
-				case HID_KEYBOARD_SC_LEFT_CONTROL:
-					kbdReport->Modifier +=
-					   HID_KEYBOARD_MODIFIER_LEFTCTRL;
-					break;
-				case HID_KEYBOARD_SC_RIGHT_CONTROL:
-					kbdReport->Modifier +=
-					   HID_KEYBOARD_MODIFIER_RIGHTCTRL;
-					break;
-				case HID_KEYBOARD_SC_LEFT_ALT:
-					kbdReport->Modifier +=
-					   HID_KEYBOARD_MODIFIER_LEFTALT;
-					break;
-				case HID_KEYBOARD_SC_RIGHT_ALT:
-					kbdReport->Modifier +=
-					   HID_KEYBOARD_MODIFIER_RIGHTALT;
-					break;
-				case HID_KEYBOARD_SC_LEFT_GUI:
-					kbdReport->Modifier +=
-					   HID_KEYBOARD_MODIFIER_LEFTGUI;
-					break;
-				case HID_KEYBOARD_SC_RIGHT_GUI:
-					kbdReport->Modifier +=
-					   HID_KEYBOARD_MODIFIER_RIGHTGUI;
-					break;
-				}
+		/* look at each bit for a pressed key */
+		for (uint8_t j = 0; j < 8; j++) {
+			if (kbdSCBmp[i] & (1 << j)) {
+				uint8_t sc = i * 8 + j;
+				if (sc >= HID_KEYBOARD_SC_A &&
+				    sc <= HID_KEYBOARD_SC_EXSEL)
+					kbdReport->KeyCode[usedKeyCodes++] = sc;
 			}
 		}
 	}
 
-	expPostProcessStdKbdReport(kbdReport, usedKeyCodes);
+	/* copy modifiers straight across; 0xe0--0xe7 are whole, in byte 28 */
+	kbdReport->Modifier = kbdSCBmp[HID_KEYBOARD_SC_LEFT_CONTROL / 8];
 }
 
 /*
  *
  */
 void
-kbdFillNKROReport(NKROReport *report, NKROReport *prevReport)
+kbdFillNKROReport(NKROReport *report)
 {
-	uint8_t (*mtx)[KBD_COLS][KBD_ROWS] = layersMatrix(layersWhichLayer());
+	/* Copy standard keys---between 0x04 (a) and 0xa4 (ExSel)---straight
+	 * across, as NKRO report has same bitmap for the lower parts.
+	 */
+	for (uint8_t i = (HID_KEYBOARD_SC_A / 8);
+	     i <= (HID_KEYBOARD_SC_EXSEL / 8);
+	     i++)
+		report->codeBmp[i] = kbdSCBmp[i];
 
-	for (uint8_t col = 0; col < KBD_COLS; col++) {
-		for (uint8_t row = 0; row < KBD_ROWS; row++) {
-			if (kbdBitmap[KBD_BMP_BYTE(col)] &
-			    KBD_BMP_MASK(col, row)) {
-				uint8_t sc = (*mtx)[col][row];
+	/* zero scancodes at the beginning and the end that don't belong in this
+	 * report: 0x00--0x02 (ignored, pressed, released) and 0xa5--0xa7
+	 * (system power, sleep, wake)
+	 */
+	report->codeBmp[0]  &= 0xf8;
+	report->codeBmp[20] &= 0x1f;
 
-				switch (sc) {
-				case KBD_SC_SELECT_0:
-					layersDefaultLayer = 0;
-					break;
-				case KBD_SC_SELECT_1:
-					layersDefaultLayer = 1;
-					break;
-				case KBD_SC_SELECT_2:
-					layersDefaultLayer = 2;
-					break;
-				case KBD_SC_SELECT_3:
-					layersDefaultLayer = 3;
-					break;
-				case HID_KEYBOARD_SC_LEFT_SHIFT:
-				case HID_KEYBOARD_SC_RIGHT_SHIFT:
-					if (!(prevReport->modifiers &
-					      (1 << (sc - 0xe0))))
-						expKeyPositiveEdge();
-				case HID_KEYBOARD_SC_LEFT_CONTROL:
-				case HID_KEYBOARD_SC_LEFT_ALT:
-				case HID_KEYBOARD_SC_LEFT_GUI:
-				case HID_KEYBOARD_SC_RIGHT_CONTROL:
-				case HID_KEYBOARD_SC_RIGHT_ALT:
-				case HID_KEYBOARD_SC_RIGHT_GUI:
-					report->modifiers |= (1 << (sc - 0xe0));
-					break;
-				case KBD_SC_IGNORED:
-				case KBD_SC_CAL_HI:
-				case KBD_SC_CAL_LO:
-				case KBD_SC_FN1:
-				case KBD_SC_FN2:
-				case KBD_SC_FN3:
-					break;
-				default:
-					if (!(prevReport->codeBmp[sc / 8] &
-					      (1 << (sc % 8))))
-						expKeyPositiveEdge();
-					report->codeBmp[sc / 8] |=
-					   (1 << (sc % 8));
-					break;
-				}
 
-			}
+	/* copy modifiers straight across; 0xe0--0xe7 are whole, in byte 28 */
+	report->modifiers = kbdSCBmp[HID_KEYBOARD_SC_LEFT_CONTROL / 8];
+}
+
+/*
+ * because report is pretty small, keep a copy of the previous one sent and
+ * compare, returning true if different
+ */
+bool
+kbdFillSystemReport(ExtrakeySystemReport *report)
+{
+	static ExtrakeySystemReport prevReport;
+
+	/* Copy the three scancodes we're concerned with---0xa5 (system power),
+	 * 0xa6 (system sleep) and 0xa7 (system wake).
+	 */
+	report->codeBmp = (kbdSCBmp[KBD_SC_SYSTEM_POWER / 8] >> 5);
+
+	if (prevReport.codeBmp != report->codeBmp) {
+		prevReport.codeBmp = report->codeBmp;
+		return true;
+	}
+
+	return false;
+}
+
+/*
+ * see kbdFillSystemReport comment re. return
+ */
+bool
+kbdFillConsumerReport(ExtrakeyConsumerReport *report)
+{
+	static ExtrakeyConsumerReport prevReport;
+
+	/* Copy the three bytes for the consumer keys into the report;
+	 * scancodes 0xa8 (media play) through 0xbd (web bookmarks).  0xa8 is
+	 * byte-aligned so just do straight copy. Zero the two padding bits at
+	 * the end; they shouldn't be set but who knows if there's a duff
+	 * scancode floating around.
+	 */
+	report->codeBmp[0] =  kbdSCBmp[(KBD_SC_MEDIA_PLAY / 8)];
+	report->codeBmp[1] =  kbdSCBmp[(KBD_SC_MEDIA_PLAY / 8) + 1];
+	report->codeBmp[2] = (kbdSCBmp[(KBD_SC_MEDIA_PLAY / 8) + 2] & 0x3f);
+
+	bool changed = false;
+	for (uint8_t i = 0; i < sizeof(report->codeBmp); i++) {
+		if (prevReport.codeBmp[i] != report->codeBmp[i]) {
+			changed = true;
+			prevReport.codeBmp[i] = report->codeBmp[i];
 		}
 	}
 
-	expPostProcessNKROKbdReport(report);
+	return changed;
 }
 
 /*
@@ -279,9 +317,7 @@ kbdFillNKROReport(NKROReport *report, NKROReport *prevReport)
 void
 kbdReceiveReport(const void *report)
 {
-	const uint8_t *ledReport = report;
-
-	expSetLockLEDs(ledReport[0]);
+	kbdLEDs = ((uint8_t *)report)[0];
 }
 
 /*
@@ -290,101 +326,31 @@ kbdReceiveReport(const void *report)
 void
 kbdReceiveNKROReport(const void *report)
 {
-	const uint8_t *ledReport = report;
-
-	expSetLockLEDs(ledReport[0]);
+	kbdLEDs = ((uint8_t *)report)[0];
 }
 
 /*
  *
  */
-void
-kbdScan(void)
-{
-	memset(kbdBitmap, 0x00, sizeof(kbdBitmap));
-
-	for (uint8_t i = 0; i < KBD_COLS; i++) {
-		/* skip column if necessary */
-		if (kbdColSkips[i / 8] & (1 << (i % 8)))
-			continue;
-
-		/* select column */
-		srDisable();
-		srSet(i);
-		srEnable();
-
-		/* scan */
-		kbdScanColumn(i);
-
-		/* deselect column */
-		srDisable();
-		srClear();
-		srEnable();
-
-		/* wait for negative spike */
-		if (i < KBD_COLS - 1)
-			_delay_loop_1(200);
-	}
-}
-
-/*
- *
- */
-void
-kbdScanColumn(uint8_t col)
-{
-	uint8_t scan[KBD_ROWS];
-	memset(scan, 0x00, KBD_ROWS);
-
-	_delay_loop_1(1); // shift-register & LM339 propagation delay
-
-	if (KBD_ROW_TEST(KBD_ROW1_PIN, KBD_ROW1_IP)) // 1st row
-		scan[0] = 1;
-	if (KBD_ROW_TEST(KBD_ROW2_PIN, KBD_ROW2_IP)) // 2nd row
-		scan[1] = 1;
-	if (KBD_ROW_TEST(KBD_ROW3_PIN, KBD_ROW3_IP)) // 3rd row
-		scan[2] = 1;
-	if (KBD_ROW_TEST(KBD_ROW4_PIN, KBD_ROW4_IP)) // 4th row
-		scan[3] = 1;
-#if KBD_ROWS == 8
-	if (KBD_ROW_TEST(KBD_ROW5_PIN, KBD_ROW5_IP)) // 5th row
-		scan[4] = 1;
-	if (KBD_ROW_TEST(KBD_ROW6_PIN, KBD_ROW6_IP)) // 6th row
-		scan[5] = 1;
-	if (KBD_ROW_TEST(KBD_ROW7_PIN, KBD_ROW7_IP)) // 7th row
-		scan[6] = 1;
-	if (KBD_ROW_TEST(KBD_ROW8_PIN, KBD_ROW8_IP)) // 8th row
-		scan[7] = 1;
-#endif
-
-	for (uint8_t i = 0; i < KBD_ROWS; i++) {
-		if (scan[i])
-			kbd[col][i]--;
-		else
-			kbd[col][i]++;
-
-		if (kbd[col][i] < KBD_DEBOUNCE_MIN)
-			kbd[col][i] = KBD_DEBOUNCE_MIN;
-		else if (kbd[col][i] > KBD_DEBOUNCE_MAX)
-			kbd[col][i] = KBD_DEBOUNCE_MAX;
-
-		if (kbd[col][i] > KBD_DEBOUNCE_THRESH)
-			kbdBitmap[KBD_BMP_BYTE(col)] |= KBD_BMP_MASK(col, i);
-	}
-}
-
-/*
- *
- */
-uint8_t
+bool
 kbdWantsWakeup(void)
 {
-	for (uint8_t col = 0; col < KBD_COLS; col++)
-		for (uint8_t row = 0; row < KBD_ROWS; row++)
-			if (kbd[col][row] > KBD_DEBOUNCE_THRESH &&
-			    layerMatrix0[col][row] >= HID_KEYBOARD_SC_A)
-				return 1;
-	return 0;
+	for (uint8_t i = (HID_KEYBOARD_SC_A / 8);
+	     i <= (HID_KEYBOARD_SC_RIGHT_GUI / 8);
+	     i++) {
+		if (!kbdSCBmp[i])
+			continue;
+
+		for (uint8_t j = 0; j < 8; j++) {
+			if (kbdSCBmp[i] & (1 << j)) {
+				uint8_t sc = i * 8 + j;
+				if (sc >= HID_KEYBOARD_SC_A)
+					return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 /*

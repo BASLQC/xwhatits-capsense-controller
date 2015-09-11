@@ -68,6 +68,17 @@ int main(int argc, char **argv)
             "show keyboard column (scan) skips");
     parser.addOption(kbdColSkipsOpt);
 
+    QCommandLineOption eepromOpt(QStringList() << "e" << "eeprom",
+            "show contents of EEPROM");
+    parser.addOption(eepromOpt);
+    
+    QCommandLineOption writeEEPROMOpt("write-eeprom-byte",
+            "write single byte in EEPROM", "addr=val");
+    parser.addOption(writeEEPROMOpt);
+
+    QCommandLineOption debugOpt("debug", "show debugging information");
+    parser.addOption(debugOpt);
+
     QCommandLineOption bootloaderOpt(QStringList() << "b" << "bootloader",
             "reboot controller into dfu bootloader");
     parser.addOption(bootloaderOpt);
@@ -235,6 +246,45 @@ int main(int argc, char **argv)
         for (size_t i = 0; i < skips.size(); i++)
             cout << setw(2) << i + 1 << ": " <<
                 (skips[i] ? "(SKIP)" : "(____)") << endl;
+    }
+
+    if (parser.isSet(eepromOpt))
+    {
+        cerr << "eeprom contents:" << endl;
+        vector<unsigned char> eep = diag.eepromContents();
+        for (size_t i = 0; i < eep.size(); i++)
+            cout << dec << setw(4) << setfill(' ') << i << ": 0x" <<
+                hex << setw(2) << setfill('0') << (unsigned int)eep[i] << endl;
+    }
+
+    if (parser.isSet(debugOpt))
+    {
+        vector<unsigned char> d = diag.debugInfo();
+        for (size_t i = 0; i < d.size(); i++)
+            cout << dec << setw(4) << setfill(' ') << i << ": 0x" <<
+                hex << setw(2) << setfill('0') << (unsigned int)d[i] << endl;
+    }
+
+    if (parser.isSet(writeEEPROMOpt))
+    {
+        string s = parser.value(writeEEPROMOpt).toStdString();
+        unsigned int addr;
+        unsigned char val;
+        if (sscanf(s.c_str(), "%u = 0x%hhx", &addr, &val) == 2)
+            ;
+        else if (sscanf(s.c_str(), "%u = %hhu", &addr, &val) == 2)
+            ;
+        else if (sscanf(s.c_str(), "0x%x = 0x%hhx", &addr, &val) == 2)
+            ;
+        else
+        {
+            cerr << "error: EEPROM write syntax should be in the form of "
+                "addr=val" << endl;
+            return 1;
+        }
+        cerr << "writing EEPROM byte " << addr << " to " << (unsigned int)val <<
+            endl;
+        diag.writeEEPROMByte(addr, val);
     }
 
     if (parser.isSet(bootloaderOpt))

@@ -1,5 +1,5 @@
 /******************************************************************************
-  Copyright 2014 Tom Cornall
+  Copyright 2014 Tom Wong-Cornall
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,37 +30,4 @@ srInit(void)
 #if defined(SR_STCP_OP)
 	SR_DDR |= (1 << SR_STCP_OP);
 #endif
-}
-
-/*
- *
- */
-void
-srClear(void)
-{
-	SR_PORT &= ~(1 << SR_C_OP);
-	SR_PORT &= ~(1 << SR_D_OP);
-	for (uint8_t i = 0; i < KBD_COLS + 1; i++) {
-		SR_PORT |=  (1 << SR_C_OP);
-		SR_PORT &= ~(1 << SR_C_OP);
-	}
-}
-
-/*
- *
- */
-void
-srSet(uint8_t pos)
-{
-	SR_PORT &= ~(1 << SR_C_OP);
-	SR_PORT &= ~(1 << SR_D_OP);
-	SR_PORT |=  (1 << SR_D_OP);
-	SR_PORT |=  (1 << SR_C_OP);
-	SR_PORT &= ~(1 << SR_C_OP);
-	SR_PORT &= ~(1 << SR_D_OP);
-
-	for (uint8_t i = 0; i < pos; i++) {
-		SR_PORT |=  (1 << SR_C_OP);
-		SR_PORT &= ~(1 << SR_C_OP);
-	}
 }

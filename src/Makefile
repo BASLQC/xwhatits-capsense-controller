@@ -17,7 +17,7 @@ BOARD_TYPE    = MODEL_F
 BOARD_REV     = 1
 USB_CURRENT   = 100
 
-VERSION      = 0.7.1
+VERSION      = 0.8.0
 
 MCU          = atmega32u2
 ARCH         = AVR8
@@ -33,7 +33,9 @@ SRC          = $(TARGET).c \
 	       exp.c \
 	       kbd.c \
 	       layers.c \
+	       macros.c \
 	       mcp4726.c \
+	       scan.c \
 	       spi.c \
 	       sr.c \
 	       twi.c \
@@ -42,7 +44,8 @@ SRC          = $(TARGET).c \
 LUFA_PATH    = lib/LUFA-130303/LUFA
 CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER \
 	       -Icfg/ \
-	       -Wall\
+	       -Wall \
+	       -flto \
 	       -DVERSION=\"$(VERSION)\" \
 	       -D$(BOARD_TYPE) \
 	       -DBOARD_REV=$(BOARD_REV) \

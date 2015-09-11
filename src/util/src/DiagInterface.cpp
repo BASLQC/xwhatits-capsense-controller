@@ -1,4 +1,4 @@
-/******************************************************************************
+/*****************************************************************************
   Copyright 2014 Tom Cornall
 
   This program is free software: you can redistribute it and/or modify
@@ -13,11 +13,12 @@
 
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.  
- ******************************************************************************/
+ *****************************************************************************/
 #include "DiagInterface.h"
 
 #define DEV_VID 0x0481
 #define DEV_PID 0x0002
+#define USB_TIMEOUT_MS 5000
 
 using namespace std;
 
@@ -160,6 +161,7 @@ void DiagInterface::openDev(std::string devPath)
     _cols = currState[3];
     _rows = currState[4];
     _keyboardType = (DiagKeyboardType)currState[5];
+    _usingNKROReport = (currState[6] != 0);
 }
 
 /*
@@ -518,6 +520,85 @@ void DiagInterface::storeKbdColSkips(void)
 /*
  *
  */
+std::vector<unsigned char> DiagInterface::eepromContents(void)
+{
+    vector<unsigned char> v;
+
+    setState(drNothing, false);
+    setState(drEEPROM);
+
+    int firstLoc = -1;
+    while (firstLoc != currState[1])
+    {
+        if (firstLoc < 0)
+            firstLoc = currState[1];
+
+        unsigned int startAddr = (unsigned int)currState[1] * 4;
+        unsigned int endAddr = startAddr + 4;
+        if (endAddr >= v.size())
+            v.resize(endAddr, 0xaa);
+
+        for (int i = 0; i < 4; i++)
+            v[startAddr + i] = (unsigned int)currState[i + 2];
+
+        updateState();
+    }
+
+    return v;
+}
+
+/*
+ *
+ */
+void DiagInterface::writeEEPROMByte(int addr, unsigned char val)
+{
+    if (addr < 0 || addr >= 1023)
+        throw runtime_error("error writing EEPROM byte: address must be "
+                "between 0 and 1023");
+    sendCmd(dcWriteEEPROMByte, addr & 0xff, addr >> 8, val);
+}
+
+/*
+ *
+ */
+std::vector<unsigned char> DiagInterface::debugInfo(void)
+{
+    vector<unsigned char> v;
+
+    setState(drNothing, false);
+    setState(drDebug);
+
+    int firstLoc = -1;
+    while (firstLoc != currState[1])
+    {
+        unsigned int addr = (unsigned int)currState[1];
+        unsigned int data = (unsigned int)currState[2];
+
+        if (firstLoc < 0)
+            firstLoc = addr;
+
+        if (addr >= v.size())
+            v.resize(addr + 1, 0xff);
+
+        v[addr] = data;
+
+        updateState();
+    }
+
+    return v;
+}
+
+/*
+ *
+ */
+void DiagInterface::setScanEnabled(bool enabled)
+{
+    sendCmd(dcSetScanEnabled, enabled ? 1 : 0);
+}
+
+/*
+ *
+ */
 void DiagInterface::setLayerConditions(std::vector<LayerCondition> lcs)
 {
     int numLCs = lcs.size();
@@ -604,12 +685,22 @@ void DiagInterface::sendCtrl(unsigned char buf[8])
     data[0] = 0;
     memcpy(&data[1], buf, sizeof(data));
 
-    if (hid_write(dev, data, sizeof(data)) < 0)
+    bool success = false;
+    QTime t;
+    t.start();
+    do
     {
-        char buf[1024];
-        wcstombs(buf, hid_error(dev), sizeof(buf));
-        throw runtime_error(string("error sending data: ") + buf);
-    }
+        if (hid_write(dev, data, sizeof(data)) >= 0)
+        {
+            success = true;
+            break;
+        }
+
+        cerr << "hid_write failed..." << endl;
+    } while (t.elapsed() < USB_TIMEOUT_MS);
+
+    if (!success)
+        throw runtime_error("error: could not read from keyboard");
 }
 
 /*
@@ -634,15 +725,26 @@ void DiagInterface::setState(DiagReportState state, bool block)
 void DiagInterface::updateState(void)
 {
     unsigned char buf[8];
+    int bytesRead = 0;
 
-    memset(buf, 0x00, sizeof(buf));
-    int bytesRead = hid_read(dev, buf, sizeof(buf));
-    if (bytesRead < 0)
+    bool success = false;
+    QTime t;
+    t.start();
+    do
     {
-        char buf[1024];
-        wcstombs(buf, hid_error(dev), sizeof(buf));
-        throw runtime_error(string("error reading data: ") + buf);
-    }
+        memset(buf, 0x00, sizeof(buf));
+        bytesRead = hid_read(dev, buf, sizeof(buf));
+        if (bytesRead >= 0)
+        {
+            success = true;
+            break;
+        }
+
+        cerr << "hid_read failed..." << endl;
+    } while (t.elapsed() < USB_TIMEOUT_MS);
+
+    if (!success)
+        throw runtime_error("error: could not read from keyboard");
 
     memcpy(currState, buf, bytesRead);
 }
