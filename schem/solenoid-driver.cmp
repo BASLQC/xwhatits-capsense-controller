@@ -1,4 +1,4 @@
-Cmp-Mod V01 Created by CvPcb (2013-may-18)-stable date = Sun 06 Apr 2014 15:15:46 NZST
+Cmp-Mod V01 Created by CvPcb (2013-may-18)-stable date = Sat 10 May 2014 17:11:26 NZST
 
 BeginCmp
 TimeStamp = /533F9B5C;
@@ -43,13 +43,6 @@ IdModule  = c_elec_6.3x7.7;
 EndCmp
 
 BeginCmp
-TimeStamp = /5340A587;
-Reference = C7;
-ValeurCmp = 220uF;
-IdModule  = c_elec_6.3x7.7;
-EndCmp
-
-BeginCmp
 TimeStamp = /533FA643;
 Reference = D1;
 ValeurCmp = 1N5819;
@@ -75,13 +68,6 @@ TimeStamp = /533CF06C;
 Reference = P1;
 ValeurCmp = CONN_3X2;
 IdModule  = pin_array_3x2;
-EndCmp
-
-BeginCmp
-TimeStamp = /533F956A;
-Reference = P2;
-ValeurCmp = TST;
-IdModule  = TP;
 EndCmp
 
 BeginCmp
@@ -130,6 +116,13 @@ BeginCmp
 TimeStamp = /533FAB2E;
 Reference = R5;
 ValeurCmp = 16K;
+IdModule  = SM0805;
+EndCmp
+
+BeginCmp
+TimeStamp = /536DB50B;
+Reference = R6;
+ValeurCmp = 100K;
 IdModule  = SM0805;
 EndCmp
 

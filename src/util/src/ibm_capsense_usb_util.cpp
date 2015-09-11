@@ -15,7 +15,9 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.  
  ******************************************************************************/
 #include <QApplication>
-#include <QCommandLineParser>
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 2, 1))
+#   include <QCommandLineParser>
+#endif
 #include <QMessageBox>
 #include <QInputDialog>
 #include <iomanip>
@@ -33,6 +35,7 @@ int main(int argc, char **argv)
     QApplication::setApplicationName("ibm_capsense_usb_util");
     QApplication::setApplicationVersion(VER);
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 2, 1))
     QCommandLineParser parser;
     parser.addHelpOption();
     parser.addVersionOption();
@@ -70,11 +73,13 @@ int main(int argc, char **argv)
     parser.addOption(bootloaderOpt);
 
     parser.process(a);
+#endif
 
     DiagInterface diag;
     vector<string> devPaths = diag.listDevPaths();
     string devPath;
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 2, 1))
     int numOpts = parser.optionNames().size();
 
     if (parser.isSet(listDevsOpt))
@@ -95,13 +100,16 @@ int main(int argc, char **argv)
     else if (!devPaths.empty())
         devPath = devPaths[0];
 
+#endif
     try
     {
         /* run GUI if no arguments specified (except for --device) */
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 2, 1))
         if (numOpts == 0 || (numOpts == 1 && parser.isSet(devOpt)))
         {
             /* find controller */
             if (!parser.isSet(devOpt))
+#endif
             {
                 if (devPaths.empty())
                 {
@@ -134,7 +142,9 @@ int main(int argc, char **argv)
             frontend.show();
 
             return a.exec();
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 2, 1))
         }
+#endif
     }
     catch (std::exception &e)
     {
@@ -142,6 +152,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 2, 1))
     /* open device */
     diag.openDev(devPath);
 
@@ -231,6 +242,7 @@ int main(int argc, char **argv)
         cerr << "entering bootloader" << endl;
         diag.enterBootloader();
     }
+#endif
 
     return 0;
 }

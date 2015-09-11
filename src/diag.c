@@ -122,22 +122,28 @@ diagFillReport(uint8_t *reportData)
 		diagReportState = dr2ndCols;
 		break;
 	case dr2ndCols:
+#if KBD_COLS == 12
+                diagReportKbd(reportData, 7, 11);
+#elif KBD_COLS == 16 || KBD_COLS == 23
 		diagReportKbd(reportData, 7, 13);
+#endif
 		diagReportState = dr3rdCols;
 		break;
 	case dr3rdCols:
-#if KBD_COLS == 16
+#if KBD_COLS == 12
+		diagReportState = dr1stCols;
+#elif KBD_COLS == 16
 		diagReportKbd(reportData, 14, 15);
 		diagReportState = dr1stCols;
 #elif KBD_COLS == 23
 		diagReportKbd(reportData, 14, 20);
 		diagReportState = dr4thCols;
 #else
-#	error "kbd columns not 16 or 23"
+#	error "kbd columns not 12, 16 or 23"
 #endif
 		break;
 	case dr4thCols:
-#if KBD_COLS == 16
+#if KBD_COLS == 12 || KBD_COLS == 16
 #elif KBD_COLS == 23
 		diagReportKbd(reportData, 21, 23);
 		diagReportState = dr4thCols;
@@ -183,7 +189,7 @@ diagReportInfo(uint8_t *reportData)
 #if defined(BEAMSPRING)
 	reportData[5] = dktBeamspring;
 #elif defined(BEAMSPRING_DISPLAYWRITER)
-	reportData[5] = dktDisplaywriter;
+	reportData[5] = dktBeamspringDisplaywriter;
 #elif defined(MODEL_F)
 	reportData[5] = dktModelF;
 #else

@@ -55,7 +55,7 @@
 #	else
 #		error "BOARD_REV not understood"
 #	endif
-#elif defined(BEAMSPRING_DISPLAYWRITER) || defined(MODEL_F)
+#elif defined(MODEL_F)
 #	define KBD_COLS     16
 #	define KBD_ROWS     8
 #	define KBD_ROW1_PIN PIND
@@ -74,6 +74,25 @@
 #	define KBD_ROW6_IP  PC6
 #	define KBD_ROW7_IP  PC5
 #	define KBD_ROW8_IP  PC4
+#elif defined(BEAMSPRING_DISPLAYWRITER)
+#	define KBD_COLS     12
+#	define KBD_ROWS     8
+#	define KBD_ROW1_PIN PINC
+#	define KBD_ROW2_PIN PIND
+#	define KBD_ROW3_PIN PINC
+#	define KBD_ROW4_PIN PIND
+#	define KBD_ROW5_PIN PINC
+#	define KBD_ROW6_PIN PIND
+#	define KBD_ROW7_PIN PINC
+#	define KBD_ROW8_PIN PIND
+#	define KBD_ROW1_IP  PC7
+#	define KBD_ROW2_IP  PD0
+#	define KBD_ROW3_IP  PC6
+#	define KBD_ROW4_IP  PD1
+#	define KBD_ROW5_IP  PC5
+#	define KBD_ROW6_IP  PD2
+#	define KBD_ROW7_IP  PC4
+#	define KBD_ROW8_IP  PD3
 #else
 #	error "BOARD_TYPE not specified in makefile"
 #endif

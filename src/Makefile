@@ -12,11 +12,11 @@
 # The board type and revision must match the controller
 
 #BOARD_TYPE    = BEAMSPRING
-#BOARD_TYPE    = BEAMSPRING_DISPLAYWRITER
-BOARD_TYPE    = MODEL_F
+BOARD_TYPE    = BEAMSPRING_DISPLAYWRITER
+#BOARD_TYPE    = MODEL_F
 BOARD_REV     = 1
 
-VERSION      = 0.6.1
+VERSION      = 0.6.2
 
 MCU          = atmega32u2
 ARCH         = AVR8
