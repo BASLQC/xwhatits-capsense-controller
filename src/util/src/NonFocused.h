@@ -14,42 +14,44 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.  
  ******************************************************************************/
-#ifndef KEY_H
-#define KEY_H
+#ifndef NONFOCUSED_H
+#define NONFOCUSED_H
 
 #include <QComboBox>
-#include <QFont>
-#include <QHBoxLayout>
-#include <QPainter>
-#include <QVBoxLayout>
-#include <QWidget>
-#include "DiagInterface.h"
-#include "NonFocused.h"
-#include "Scancodes.h"
+#include <QFocusEvent>
+#include <QKeyEvent>
+#include <QSpinBox>
+#include <QWheelEvent>
 
-class Key: public QWidget
+class NonFocusedSpinBox:
+    public QSpinBox
 {
     Q_OBJECT
 
     public:
-        Key(DiagInterface &diag, int layer, int col, int row,
-                unsigned char scancode, QWidget *parent = 0);
-        unsigned char scancode(void);
-        void setPressed(bool val);
+        NonFocusedSpinBox(void);
 
     protected:
-        virtual void paintEvent(QPaintEvent *event);
+        virtual void focusInEvent(QFocusEvent *event);
+        virtual void focusOutEvent(QFocusEvent *event);
+        virtual void keyPressEvent(QKeyEvent *event);
+        virtual void wheelEvent(QWheelEvent *event);
 
-    private:
-        DiagInterface &diag;
-        int layer;
-        int col;
-        int row;
-        NonFocusedComboBox *scancodeCombo;
-        bool pressed;
+};
 
-    private slots:
-        void scancodeComboIndexChanged(int index);
+class NonFocusedComboBox:
+    public QComboBox
+{
+    Q_OBJECT
+
+    public:
+        NonFocusedComboBox(void);
+
+    protected:
+        virtual void focusInEvent(QFocusEvent *event);
+        virtual void focusOutEvent(QFocusEvent *event);
+        virtual void keyPressEvent(QKeyEvent *event);
+        virtual void wheelEvent(QWheelEvent *event);
 };
 
 #endif

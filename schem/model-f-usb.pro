@@ -1,4 +1,4 @@
-update=Tue 15 Apr 2014 15:56:34 NZST
+update=Fri 23 May 2014 17:24:45 NZST
 last_client=pcbnew
 [cvpcb]
 version=1
@@ -9,10 +9,10 @@ EquName1=devcms
 version=1
 LastNetListRead=model-f-usb.net
 UseCmpFile=1
-PadDrill="    4.500000"
-PadDrillOvalY="    4.500000"
-PadSizeH="   10.000000"
-PadSizeV="   10.000000"
+PadDrill="    0.000000"
+PadDrillOvalY="    0.000000"
+PadSizeH="    2.100000"
+PadSizeV="    1.600000"
 PcbTextSizeV="    1.500000"
 PcbTextSizeH="    1.500000"
 PcbTextThickness="    0.300000"
@@ -23,7 +23,7 @@ SolderMaskClearance="    0.000000"
 SolderMaskMinWidth="    0.000000"
 DrawSegmentWidth="    0.200000"
 BoardOutlineThickness="    0.100000"
-ModuleOutlineThickness="    0.150000"
+ModuleOutlineThickness="    0.100000"
 [pcbnew/libraries]
 LibDir=/home/tom/sysdev/kicad-libs
 LibName1=sockets
@@ -47,3 +47,4 @@ LibName18=EXTRA_PIN_ARRAY
 LibName19=HC49US
 LibName20=RPACK
 LibName21=TEST_PADS
+LibName22=USB

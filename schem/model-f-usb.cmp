@@ -1,4 +1,4 @@
-Cmp-Mod V01 Created by CvPcb (2013-may-18)-stable date = Tue 15 Apr 2014 15:16:12 NZST
+Cmp-Mod V01 Created by CvPcb (2013-may-18)-stable date = Fri 23 May 2014 22:06:08 NZST
 
 BeginCmp
 TimeStamp = /51F62A67;
@@ -85,10 +85,10 @@ IdModule  = SM0805;
 EndCmp
 
 BeginCmp
-TimeStamp = /534BC252;
+TimeStamp = /537ECC55;
 Reference = P1;
-ValeurCmp = CONN_5;
-IdModule  = PIN_ARRAY_5x1;
+ValeurCmp = USB;
+IdModule  = USB-Micro-B-SMT;
 EndCmp
 
 BeginCmp
@@ -99,52 +99,10 @@ IdModule  = pin_array_3x2;
 EndCmp
 
 BeginCmp
-TimeStamp = /5347EC94;
-Reference = P3;
-ValeurCmp = Chassis GND;
-IdModule  = 1pin;
-EndCmp
-
-BeginCmp
-TimeStamp = /534C6C9B;
-Reference = P4;
-ValeurCmp = Chassis GND;
-IdModule  = 1pin;
-EndCmp
-
-BeginCmp
-TimeStamp = /534C6CB5;
-Reference = P5;
-ValeurCmp = Chassis GND;
-IdModule  = 1pin;
-EndCmp
-
-BeginCmp
-TimeStamp = /534C6CBB;
-Reference = P6;
-ValeurCmp = Chassis GND;
-IdModule  = 1pin;
-EndCmp
-
-BeginCmp
-TimeStamp = /534C8C6D;
-Reference = P7;
-ValeurCmp = Chassis GND;
-IdModule  = 1pin;
-EndCmp
-
-BeginCmp
-TimeStamp = /534C8C73;
-Reference = P8;
-ValeurCmp = Chassis GND;
-IdModule  = 1pin;
-EndCmp
-
-BeginCmp
 TimeStamp = /5347CF26;
 Reference = PMF1;
 ValeurCmp = CONN_30;
-IdModule  = PIN_ARRAY_3_96-30X1;
+IdModule  = PIN_ARRAY_3_96-30X1_large_pads;
 EndCmp
 
 BeginCmp
@@ -192,14 +150,14 @@ EndCmp
 BeginCmp
 TimeStamp = /51A8730B;
 Reference = R7;
-ValeurCmp = 47K;
+ValeurCmp = 4.7K;
 IdModule  = SM0805;
 EndCmp
 
 BeginCmp
 TimeStamp = /51A8731A;
 Reference = R8;
-ValeurCmp = 10K;
+ValeurCmp = 1K;
 IdModule  = SM0805;
 EndCmp
 
@@ -241,14 +199,14 @@ EndCmp
 BeginCmp
 TimeStamp = /51A703F9;
 Reference = SW1;
-ValeurCmp = SW_PUSH;
+ValeurCmp = PROG;
 IdModule  = TEST_BRIDGE_SM;
 EndCmp
 
 BeginCmp
 TimeStamp = /51A700CC;
 Reference = SW2;
-ValeurCmp = SW_PUSH;
+ValeurCmp = RESET;
 IdModule  = TEST_BRIDGE_SM;
 EndCmp
 

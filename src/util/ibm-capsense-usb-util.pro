@@ -1,4 +1,4 @@
-VERSION = 0.6.2
+VERSION = 0.6.7
 VERSTR = '\\"$${VERSION}\\"'
 DEFINES += VER=\"$${VERSTR}\"
 
@@ -41,7 +41,7 @@ macx {
     QMAKE_CXXFLAGS += -stdlib=libc++
 }
 
-CONFIG += release
+CONFIG += debug
 
 HEADERS += \
         src/DiagInterface.h \
@@ -50,6 +50,7 @@ HEADERS += \
         src/Key.h \
         src/KeyMon.h \
         src/LayerConditionWatcher.h \
+        src/NonFocused.h \
         src/Scancodes.h
 
 SOURCES += \
@@ -59,6 +60,7 @@ SOURCES += \
         src/Key.cpp \
         src/KeyMon.cpp \
         src/LayerConditionWatcher.cpp \
+        src/NonFocused.cpp \
         src/Scancodes.cpp \
         src/ibm_capsense_usb_util.cpp
 

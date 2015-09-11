@@ -32,16 +32,24 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
      */
     QGroupBox *infoGroup = new QGroupBox("Info");
 
-    QLabel *utilVersionLabel = new QLabel("Util version:\t\t" + QString(VER));
     kbdVersionLabel = new QLabel;
+    kbdTypeLabel = new QLabel;
     kbdMatrixSizeLabel = new QLabel;
+    kbdLayerCountLabel = new QLabel;
 
-    QVBoxLayout *infoVBox = new QVBoxLayout;
-    infoVBox->addWidget(utilVersionLabel);
-    infoVBox->addWidget(kbdVersionLabel);
-    infoVBox->addWidget(kbdMatrixSizeLabel);
+    QGridLayout *infoGrid = new QGridLayout;
+    infoGrid->addWidget(new QLabel("Util version:"), 0, 0);
+    infoGrid->addWidget(new QLabel(QString(VER)), 0, 1);
+    infoGrid->addWidget(new QLabel("Firmware version:"), 1, 0);
+    infoGrid->addWidget(kbdVersionLabel, 1, 1);
+    infoGrid->addWidget(new QLabel("Keyboard type:"), 2, 0);
+    infoGrid->addWidget(kbdTypeLabel, 2, 1);
+    infoGrid->addWidget(new QLabel("Matrix size:"), 3, 0);
+    infoGrid->addWidget(kbdMatrixSizeLabel, 3, 1);
+    infoGrid->addWidget(new QLabel("Layer count:"), 4, 0);
+    infoGrid->addWidget(kbdLayerCountLabel, 4, 1);
 
-    infoGroup->setLayout(infoVBox);
+    infoGroup->setLayout(infoGrid);
 
     /*
      * state section
@@ -71,7 +79,7 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
     vrefHelpButton->setToolTip("Help");
 
     QLabel *vrefSpinBoxLabel = new QLabel("Current threshold:");
-    vrefSpinBox = new QSpinBox;
+    vrefSpinBox = new NonFocusedSpinBox;
     vrefSpinBox->setMaximum(65535);
     QHBoxLayout *vrefSpinBoxHBox = new QHBoxLayout;
     vrefSpinBoxHBox->addWidget(vrefSpinBoxLabel);
@@ -91,13 +99,15 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
 
     vrefGroup->setLayout(vrefVBox);
 
+    QWidget::setTabOrder(vrefHelpButton, vrefSpinBox);
+
     /*
      * expansion header section
      */
     QGroupBox *expGroup = new QGroupBox("Expansion header");
 
     QLabel *expModeComboLabel = new QLabel("Mode:");
-    expModeCombo = new QComboBox;
+    expModeCombo = new NonFocusedComboBox;
     for (int i = 0; i < expModeEND; i++)
     {
         switch (i)
@@ -106,7 +116,7 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
                 expModeCombo->addItem("Disabled", i);
                 break;
             case expModeSolenoid:
-                expModeCombo->addItem("Solenoid", i);
+                expModeCombo->addItem("Solenoid/Buzzer", i);
                 break;
             case expModeLockLEDs:
                 expModeCombo->addItem("Lock LEDs", i);
@@ -117,11 +127,11 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
     }
 
     QLabel *expVal1Label = new QLabel("Extend time (ms):");
-    expVal1SpinBox = new QSpinBox;
+    expVal1SpinBox = new NonFocusedSpinBox;
     expVal1SpinBox->setMaximum(255);
 
     QLabel *expVal2Label = new QLabel("Retract time (ms):");
-    expVal2SpinBox = new QSpinBox;
+    expVal2SpinBox = new NonFocusedSpinBox;
     expVal2SpinBox->setMaximum(255);
 
     QPushButton *expStoreButton = new QPushButton("Store in EEPROM");
@@ -228,7 +238,9 @@ Frontend::Frontend(DiagInterface &diag, QWidget *parent):
 
     setLayout(vbox1);
 
-    /* ask for a few things immediately */
+    /* prevent vref spinbox from getting initial focus */
+    QWidget::setTabOrder(bootloaderHelpButton, vrefSpinBox);
+
     QTimer::singleShot(0, this, SLOT(updateVref()));
     QTimer::singleShot(0, this, SLOT(updateExpMode()));
     QTimer::singleShot(0, this, SLOT(buildMatrix()));
@@ -523,9 +535,9 @@ void Frontend::buildMatrix(void)
         throw runtime_error("error: keyboard reports matrix with no columns");
     int rows = scancodes[0][0].size();
 
-    kbdMatrixSizeLabel->setText("Matrix size (" +
-            QString::number(layers) + " layers):\t" +
-            QString::number(cols) + " x " + QString::number(rows));
+    kbdMatrixSizeLabel->setText(QString::number(cols) + " x " +
+            QString::number(rows));
+    kbdLayerCountLabel->setText(QString::number(layers));
 
     keyWidgets = vector<vector<vector<Key *>>>(layers,
             vector<vector<Key *>>(cols, vector<Key *>(rows)));
@@ -561,6 +573,8 @@ void Frontend::buildMatrix(void)
         matrixTabWidget->addTab(scrollArea, layer == 0 ?
                 "Base Layer" : "Layer " + QString::number(layer));
     }
+
+    setKeyColsEnabled();
 }
 
 /*
@@ -607,7 +621,7 @@ void Frontend::buildLayerConditions(void)
 
         QLabel *arrowLabel = new QLabel(QChar(0x2192));
 
-        QComboBox *layerCombo = new QComboBox;
+        NonFocusedComboBox *layerCombo = new NonFocusedComboBox;
         for (int i = 0; i < 4; i++)
             layerCombo->addItem(i == 0 ? "Base Layer" : "Layer " +
                     QString::number(i), i);
@@ -681,6 +695,20 @@ void Frontend::colSkipCBChanged(int)
     cerr << "setting kbd col skips" << endl;
 
     diag.setKbdColSkips(colSkipsFromCBs());
+
+    setKeyColsEnabled();
+}
+
+/*
+ *
+ */
+void Frontend::setKeyColsEnabled(void)
+{
+    vector<bool> skips = colSkipsFromCBs();
+    for (size_t layer = 0; layer < keyWidgets.size(); layer++)
+        for (int col = 0; col < diag.cols(); col++)
+            for (int row = 0; row < diag.rows(); row++)
+                keyWidgets[layer][col][row]->setEnabled(!skips[col]);
 }
 
 /*
@@ -723,8 +751,23 @@ void Frontend::colSkipsHelpButtonClicked(void)
  */
 void Frontend::queryKbdVersion(void)
 {
-    kbdVersionLabel->setText("Firmware version:\t\t" +
-            QString::fromStdString(diag.version()));
+    kbdVersionLabel->setText(QString::fromStdString(diag.version()));
+
+    switch (diag.keyboardType()) 
+    {
+        case dktBeamspring:
+            kbdTypeLabel->setText("Beamspring");
+            break;
+        case dktBeamspringDisplaywriter:
+            kbdTypeLabel->setText("Beamspring Displaywriter");
+            break;
+        case dktModelF:
+            kbdTypeLabel->setText("Model F");
+            break;
+        default:
+            kbdTypeLabel->setText("(invalid)");
+            break;
+    }
 }
 
 /*

@@ -105,6 +105,8 @@ bool exportLayout(QString filename,
     ts << "# Expansion header\n";
     ts << "+ " << expMode << ' ' << expVal1 << ' ' << expVal2;
 
+    ts << '\n';
+
     f.close();
 
     return true;

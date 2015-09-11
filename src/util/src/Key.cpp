@@ -29,14 +29,8 @@ Key::Key(DiagInterface &diag, int layer, int col, int row,
     col(col),
     row(row)
 {
-    QFont f = font();
-    f.setStyleHint(QFont::Monospace);
-    f.setFamily("");
-    f.setPointSize(f.pointSize() - 2);
-    setFont(f);
-
     int cmbIdx = -1;
-    scancodeCombo = new QComboBox;
+    scancodeCombo = new NonFocusedComboBox;
     for (unsigned char i = 0x00; i < 0xff; i++)
     {
         string scS = scancodeName(i);

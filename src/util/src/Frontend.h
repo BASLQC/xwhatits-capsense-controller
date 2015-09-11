@@ -29,7 +29,6 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QSpinBox>
 #include <QTimer>
 #include <QTabWidget>
 #include <QToolButton>
@@ -41,6 +40,7 @@
 #include "Key.h"
 #include "KeyMon.h"
 #include "LayerConditionWatcher.h"
+#include "NonFocused.h"
 #include "exp_types.h"
 
 class Frontend: public QWidget
@@ -53,7 +53,7 @@ class Frontend: public QWidget
 
     private:
         DiagInterface &diag;
-        QSpinBox *vrefSpinBox;
+        NonFocusedSpinBox *vrefSpinBox;
         QTimer *vrefMaskTimer;
         QPushButton *autoCalButton;
         QPushButton *storeVrefButton;
@@ -62,9 +62,10 @@ class Frontend: public QWidget
         QLabel *kbdVersionLabel;
         QLabel *kbdTypeLabel;
         QLabel *kbdMatrixSizeLabel;
-        QComboBox *expModeCombo;
-        QSpinBox *expVal1SpinBox;
-        QSpinBox *expVal2SpinBox;
+        QLabel *kbdLayerCountLabel;
+        NonFocusedComboBox *expModeCombo;
+        NonFocusedSpinBox *expVal1SpinBox;
+        NonFocusedSpinBox *expVal2SpinBox;
         KeyMon *keyMon;
         QGridLayout *layerConditionsGrid;
         QGridLayout *colSkipsGrid;
@@ -107,6 +108,7 @@ class Frontend: public QWidget
         void storeColSkipsButtonClicked(void);
         void storeColSkipsComplete(void);
         void colSkipsHelpButtonClicked(void);
+        void setKeyColsEnabled(void);
 
         void storeMatrixButtonClicked(void);
         void storeMatrixComplete(void);
