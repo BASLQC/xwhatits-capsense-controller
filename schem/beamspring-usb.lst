@@ -1,0 +1,86 @@
+eeschema (2013-may-18)-stable  >> Creation date: Wed 05 Feb 2014 09:47:51 NZDT
+#Cmp ( order = Reference )
+| C1         1uF         ; ~           
+| C2         0.1uF       ; ~           
+| C3         18pF        ; ~           
+| C4         18pF        ; ~           
+| C5         4.7uF       ; ~           
+| C6         0.1uF       ; ~           
+| C7         0.1uF       ; ~           
+| C8         0.1uF       ; ~           
+| C9         0.1uF       ; ~           
+| C10        0.1uF       ; ~           
+| C11        0.1uF       ; ~           
+| CON1       USB-MINI-B  ; ~           
+| P1         EDGE_30X2   ; MODULE      
+| R1         10K         ; ~           
+| R2         10K         ; ~           
+| R3         20K         ; ~           
+| R4         4.7K        ; ~           
+| R5         22          ; ~           
+| R6         22          ; ~           
+| R7         10K         ; ~           
+| R8         10K         ; ~           
+| R9         10K         ; ~           
+| R10        10K         ; ~           
+| R11        100K        ; ~           
+| R12        100K        ; ~           
+| R13        100K        ; ~           
+| R14        100K        ; ~           
+| R15        47K         ; ~           
+| R16        10K         ; ~           
+| R17        20K         ; ~           
+| SW1        SW_PUSH     ; ~           
+| SW2        SW_PUSH     ; ~           
+| U1         ATMEGA8U2   ;             
+| U2         DAC101S101  ; MODULE      
+| U3         74HC4094    ; MODULE      
+| U4         74HC4094    ; MODULE      
+| U5         74HC4094    ; MODULE      
+| U6         LM339       ;             
+| X1         16MHz       ; ~           
+#End Cmp
+
+#Cmp ( order = Value )
+| 18pF         C3        ; ~           
+| 18pF         C4        ; ~           
+| 0.1uF        C2        ; ~           
+| 0.1uF        C6        ; ~           
+| 0.1uF        C7        ; ~           
+| 0.1uF        C8        ; ~           
+| 0.1uF        C9        ; ~           
+| 0.1uF        C10       ; ~           
+| 0.1uF        C11       ; ~           
+| 1uF          C1        ; ~           
+| 4.7uF        C5        ; ~           
+| USB-MINI-B   CON1      ; ~           
+| EDGE_30X2    P1        ; MODULE      
+| 22           R5        ; ~           
+| 22           R6        ; ~           
+| 4.7K         R4        ; ~           
+| 10K          R1        ; ~           
+| 10K          R2        ; ~           
+| 10K          R7        ; ~           
+| 10K          R8        ; ~           
+| 10K          R9        ; ~           
+| 10K          R10       ; ~           
+| 10K          R16       ; ~           
+| 20K          R3        ; ~           
+| 20K          R17       ; ~           
+| 47K          R15       ; ~           
+| 100K         R11       ; ~           
+| 100K         R12       ; ~           
+| 100K         R13       ; ~           
+| 100K         R14       ; ~           
+| SW_PUSH      SW1       ; ~           
+| SW_PUSH      SW2       ; ~           
+| ATMEGA8U2    U1        ;             
+| LM339        U6        ;             
+| DAC101S101   U2        ; MODULE      
+| 74HC4094     U3        ; MODULE      
+| 74HC4094     U4        ; MODULE      
+| 74HC4094     U5        ; MODULE      
+| 16MHz        X1        ; ~           
+#End Cmp
+
+#End List

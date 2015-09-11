@@ -1,0 +1,10 @@
+*.d
+*.eep
+*.elf
+*.hex
+*.lss
+*.map
+*.o
+*.sym
+mtxrom
+tags
