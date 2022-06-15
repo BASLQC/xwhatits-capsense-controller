@@ -1,9 +1,9 @@
 ## **IBM Capsense USB Controllers**
 
-[Xwhatit at Geekhack](https://geekhack.org/index.php?topic=58192) has developed a set of USB controllers for the IBM capacitive keyboards (Model F and Beamspring). These allow keyboards that otherwise have no way to hook them up to a modern PC to be used (Beamsprings), offer an alternative to Soarer's excellent converter (standard Model Fs), and also an alternative to the other intriguing capsense project around, the DPH controller. It allows the potential to go a bit further than just a converter if you're trying to do something a bit unusual—like build your own keyboard using old Model F bits, add extra keys that the original controller won't support, or get full make/break scancodes with NKRO on a terminal keyboard.
+[xwhatsit at Geekhack](https://geekhack.org/index.php?topic=58192) has developed a set of USB controllers for the IBM capacitive keyboards (Model F and Beamspring). These allow keyboards that otherwise have no way to hook them up to a modern PC to be used (Beamsprings), offer an alternative to Soarer's excellent converter (standard Model Fs), and also an alternative to the other intriguing capsense project around, the DPH controller. It allows the potential to go a bit further than just a converter if you're trying to do something a bit unusual—like build your own keyboard using old Model F bits, add extra keys that the original controller won't support, or get full make/break scancodes with NKRO on a terminal keyboard.
 
-* The BASLQC has archived the GPLv3 source code [on Github in this repository.](http://github.com/baslqc/xwhatits-capsense-controller) Xwhatit wrote the original controller, we're just forking it within the rights of the GPLv3.
-* [Schematics/PCBs/precompiled binaries will available at Xwhatit's website for now.](http://downloads.cornall.co/ibm-capsense-usb)
+* The BASLQC has archived the GPLv3 source code [on Github in this repository.](http://github.com/baslqc/xwhatits-capsense-controller) xwhatsit wrote the original controller, we're just forking it within the rights of the GPLv3.
+* [Schematics/PCBs/precompiled binaries will available at xwhatsit's website for now.](https://static.wongcornall.com/ibm-capsense-usb/)
 
 ### Features
 
